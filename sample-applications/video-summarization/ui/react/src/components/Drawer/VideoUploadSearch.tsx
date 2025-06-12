@@ -1,4 +1,4 @@
-import { Button, ProgressBar } from '@carbon/react';
+import { Button, ProgressBar, TextInput } from '@carbon/react';
 import axios, { AxiosProgressEvent, AxiosResponse } from 'axios';
 import { FC, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +47,10 @@ const FullWidthButton = styled(Button)`
   justify-content: center;
 `;
 
+const TextInputStyled = styled(TextInput)`
+  margin-top: 1rem;
+`;
+
 const HiddenFileInput = styled.input`
   display: none;
 `;
@@ -64,7 +68,7 @@ export const VideoUploadSearch: FC<VideoUploadProps> = ({ closeDrawer, isOpen })
   const [progressText, setProgressText] = useState<string>('');
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [videoTags] = useState<string | null>('');
+  const [videoTags, SetVideoTags] = useState<string | null>('');
 
   const videoFileRef = useRef<HTMLInputElement>(null);
   const videoLabelRef = useRef<HTMLInputElement>(null);
@@ -200,6 +204,13 @@ export const VideoUploadSearch: FC<VideoUploadProps> = ({ closeDrawer, isOpen })
             <FullWidthButton onClick={videoFileInputClick} kind='danger--tertiary'>
               {t('changeVideo')}
             </FullWidthButton>
+            <TextInputStyled
+              labelText={t('videoTags')}
+              onChange={(ev) => {
+                SetVideoTags(ev.currentTarget.value);
+              }}
+              id='videoTags'
+            />
 
             <FullWidthButton
               onClick={() => {

@@ -122,7 +122,7 @@ export const VideoUpload: FC<VideoUploadProps> = ({ closeDrawer, isOpen }) => {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [summaryName, setSummaryName] = useState<string | null>('');
-  const [videoTags] = useState<string | null>('');
+  const [videoTags, SetVideoTags] = useState<string | null>('');
   const [chunkDuration, setChunkDuration] = useState<number>(() => defaultChunkDuration);
   const [sampleFrame, setSampleFrame] = useState<number>(() => defaultSampleFrames);
 
@@ -259,7 +259,7 @@ export const VideoUpload: FC<VideoUploadProps> = ({ closeDrawer, isOpen }) => {
   const getSummaryPipelineDTO = (videoId: string): SummaryPipelineDTO => {
     const title = summaryName ?? '';
 
-    let res: SummaryPipelineDTO = {
+    const res: SummaryPipelineDTO = {
       evam: { evamPipeline: (selectorRef?.current?.value as EVAMPipelines) ?? EVAMPipelines.OBJECT_DETECTION },
       sampling: {
         chunkDuration: chunkDuration,
@@ -360,6 +360,13 @@ export const VideoUpload: FC<VideoUploadProps> = ({ closeDrawer, isOpen }) => {
             <FullWidthButton onClick={videoFileInputClick} kind='danger--tertiary'>
               {t('changeVideo')}
             </FullWidthButton>
+            <TextInputStyled
+              labelText={t('videoTags')}
+              onChange={(ev) => {
+                SetVideoTags(ev.currentTarget.value);
+              }}
+              id='videoTags'
+            />
             <TextInputStyled
               ref={videoLabelRef}
               onChange={(ev) => {
