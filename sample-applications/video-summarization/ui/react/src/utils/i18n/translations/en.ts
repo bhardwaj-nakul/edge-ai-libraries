@@ -3,6 +3,7 @@ export const enTranslations = {
   VSSBrand: 'Video Search & Sumary',
   VSearchBrand: 'Video Search',
   VSummBrand: 'Video Summary',
+  videoTags: 'Video tags (separated by commas)',
 
   SearchVideo: 'Search Videos',
   videoSearchStart: 'Video Search Query',

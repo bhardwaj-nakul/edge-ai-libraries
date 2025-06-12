@@ -2,7 +2,7 @@ import { useEffect, type FC } from 'react';
 
 import NotificationList from './components/Notification/NotificationList.tsx';
 import MainPage from './components/MainPage/MainPage.tsx';
-import './utils/i18n';
+import './utils/i18n/index.ts';
 import { useAppDispatch, useAppSelector } from './redux/store.ts';
 import { SummaryActions, SummarySelector } from './redux/summary/summarySlice.ts';
 import { socket } from './socket.ts';

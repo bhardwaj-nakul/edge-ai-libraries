@@ -57,7 +57,9 @@ export class VideoController {
     const parsedObject: VideoDTO = { name: file.filename, tagsArray: [] };
 
     if (reqBody.tags) {
-      parsedObject.tagsArray = reqBody.tags.split(',');
+      parsedObject.tagsArray = reqBody.tags
+        .split(',')
+        .map((curr) => curr.trim());
     }
 
     const videoId = await this.$video.uploadVideo(

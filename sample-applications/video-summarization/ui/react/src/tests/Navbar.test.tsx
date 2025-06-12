@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { I18nextProvider } from 'react-i18next';
 
 import Navbar from '../components/Navbar/Navbar.tsx';
-import i18n from '../utils/i18n';
+import i18n from '../utils/i18n/index.ts';
 
 describe('Navbar Component test suite', () => {
   const renderComponent = () =>

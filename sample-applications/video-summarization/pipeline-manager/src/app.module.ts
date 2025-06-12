@@ -18,6 +18,7 @@ import { PipelineModule } from './pipeline/pipeline.module';
 import { VideoEntity } from './video-upload/models/video.entity';
 import { SearchModule } from './search/search.module';
 import { SearchEntity } from './search/model/search.entity';
+import { TagEntity } from './video-upload/models/tags.entity';
 
 const OpenTelemetryModuleConfig = OpenTelemetryModule.forRoot({
   metrics: {
@@ -54,7 +55,7 @@ const OpenTelemetryModuleConfig = OpenTelemetryModule.forRoot({
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [StateEntity, VideoEntity, SearchEntity],
+      entities: [StateEntity, VideoEntity, SearchEntity, TagEntity],
       migrations: ['./migrations/*.ts'],
       migrationsRun: true,
       synchronize: true,

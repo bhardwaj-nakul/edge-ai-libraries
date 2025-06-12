@@ -13,6 +13,7 @@ import { VideoDbService } from './video-db.service';
 import { SearchDataPrepShimService } from 'src/search/services/search-data-prep-shim.service';
 import { DataPrepMinioDTO } from 'src/search/model/search.model';
 import { lastValueFrom } from 'rxjs';
+import { TagsService } from './tags.service';
 
 @Injectable()
 export class VideoService {
@@ -23,6 +24,7 @@ export class VideoService {
     private $datastore: DatastoreService,
     private $videoDb: VideoDbService,
     private $dataprep: SearchDataPrepShimService,
+    private $tags: TagsService,
   ) {}
 
   isStreamable(videoPath: string) {
@@ -94,8 +96,11 @@ export class VideoService {
       url: objectPath,
     };
 
-    if (videoData.tagsArray) {
+    let tagsToAdd: string[] = [];
+
+    if (videoData.tagsArray && videoData.tagsArray.length > 0) {
       video.tags = videoData.tagsArray;
+      tagsToAdd = videoData.tagsArray;
     }
 
     if (videoData.name) {
@@ -104,6 +109,10 @@ export class VideoService {
 
     try {
       const videoDB = await this.$videoDb.create(video);
+      if (tagsToAdd.length > 0) {
+        Logger.log('Adding video tags', tagsToAdd);
+        await this.$tags.addTags(tagsToAdd);
+      }
       this.videoMap.set(video.videoId, videoDB);
     } catch (error) {
       Logger.error('Error saving video to database', error);

@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { I18nextProvider } from 'react-i18next';
 
 import Drawer from '../components/Drawer/Drawer.tsx';
-import i18n from '../utils/i18n';
+import i18n from '../utils/i18n/index.ts';
 
 vi.mock('../components/Navigation/Navigation.tsx', () => ({
   default: ({ children }: { children: React.ReactNode }) => (
