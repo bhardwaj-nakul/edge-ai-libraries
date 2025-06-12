@@ -9,13 +9,13 @@ from decord import VideoReader, cpu
 from langchain_core.embeddings import Embeddings
 from pydantic import BaseModel, model_validator
 
-from src.logger import logger
+from src.common import logger
 
 toPIL = T.ToPILImage()
 
 
 class vCLIPEmbeddings(BaseModel, Embeddings):
-    """MeanCLIP Embeddings model."""
+    """Embedding API to embed documents, video and query for vCLIP model."""
 
     model: Any
 

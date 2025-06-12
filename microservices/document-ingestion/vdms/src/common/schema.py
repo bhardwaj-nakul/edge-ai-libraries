@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from enum import Enum
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -83,3 +83,31 @@ class FileListResponse(DataPrepResponse):
 
     bucket_name: str
     files: Optional[List[str]]
+
+
+class VideoSummaryRequest(BaseModel):
+    """Request model for text summary processing with video timestamp references"""
+
+    bucket_name: Annotated[
+        str, Field(description="The Minio bucket name where the referenced video is stored")
+    ]
+    video_id: Annotated[
+        str,
+        Field(
+            description="The video ID (directory in Minio bucket) containing the referenced video"
+        ),
+    ]
+    video_summary: Annotated[
+        str, Field(description="The summary text for the video to be embedded")
+    ]
+    video_start_time: Annotated[
+        float,
+        Field(
+            ge=0,
+            description="The start timestamp in seconds for the video or video chunk",
+        ),
+    ]
+    video_end_time: Annotated[
+        float,
+        Field(description="The end timestamp in seconds for the video or video chunk"),
+    ]
