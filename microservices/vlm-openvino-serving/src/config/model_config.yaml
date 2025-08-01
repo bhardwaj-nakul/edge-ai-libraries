@@ -22,3 +22,8 @@ phi-3.5-vision-instruct:
 phi-3-vision-128k-instruct:
   min_pixels: null
   max_pixels: null
+
+smolvlm2-2.2b-instruct:
+  min_pixels: null
+  max_pixels: null
+  # Uses model defaults: fps=1, max_frames=64, video_size={'longest_edge': 384}

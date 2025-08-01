@@ -29,6 +29,52 @@ from src.utils.common import ErrorMessages, ModelNames, logger, settings
 from src.utils.data_models import MessageContentVideoUrl
 from transformers import AutoTokenizer
 
+
+def get_best_video_backend():
+    """
+    Determine the best available video backend from our dependencies.
+    Prioritizes: torchvision (we have it) > decord > opencv > pyav
+
+    Returns:
+        str: The name of the best available backend
+    """
+    backends_priority = ["decord", "torchvision", "opencv", "pyav"]
+
+    # Check availability using transformers utils
+    try:
+        from transformers.utils import (
+            is_torchvision_available,
+            is_decord_available,
+            is_cv2_available,
+            is_av_available,
+        )
+
+        availability_checks = {
+            "decord": is_decord_available(),
+            "torchvision": is_torchvision_available(),
+            "opencv": is_cv2_available(),
+            "pyav": is_av_available(),
+        }
+
+        logger.debug(f"Video backend availability: {availability_checks}")
+
+        # Return the first available backend in priority order
+        for backend in backends_priority:
+            if availability_checks.get(backend, False):
+                logger.info(f"Selected video backend: {backend}")
+                return backend
+
+        # Fallback to opencv (default in transformers)
+        logger.warning("No video backends detected, falling back to opencv")
+        return "opencv"
+
+    except ImportError as e:
+        logger.warning(
+            f"Could not import transformers utils for backend detection: {e}"
+        )
+        return "opencv"
+
+
 # Only include proxies if they are defined
 proxies = {}
 if settings.http_proxy:
@@ -320,6 +366,7 @@ def validate_video_inputs(content, model_name):
     if (
         isinstance(content, MessageContentVideoUrl)
         and ModelNames.QWEN not in model_name.lower()
+        and ModelNames.SMOLVLM not in model_name.lower()
     ):
         return ErrorMessages.UNSUPPORTED_VIDEO_URL_INPUT
     return None

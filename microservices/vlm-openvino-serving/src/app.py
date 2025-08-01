@@ -20,6 +20,7 @@ from fastapi_utils.tasks import repeat_every
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from qwen_vl_utils import process_vision_info
 from src.utils.common import ErrorMessages, ModelNames, logger, settings
+from src.utils.utils import get_best_video_backend
 from src.utils.data_models import (
     ChatCompletionChoice,
     ChatCompletionDelta,
@@ -87,13 +88,12 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("VLM_CORS_ALLOW_ORIGINS", "*").split(
-        ","
-    ),
+    allow_origins=os.getenv("VLM_CORS_ALLOW_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=os.getenv("VLM_CORS_ALLOW_METHODS", "*").split(","),
     allow_headers=os.getenv("VLM_CORS_ALLOW_HEADERS", "*").split(","),
 )
+
 
 class RequestQueueMiddleware(BaseHTTPMiddleware):
     """
@@ -185,7 +185,7 @@ async def queue_status():
 
 
 model_ready = False
-pipe, processor, model_dir = None, None, None
+pipe, processor, model_dir, model_config = None, None, None, None
 
 
 def restart_server():
@@ -214,7 +214,7 @@ def initialize_model():
         RuntimeError: If there is an error during model initialization.
     """
     global model_ready
-    global pipe, processor, model_dir
+    global pipe, processor, model_dir, model_config
     model_name = settings.VLM_MODEL_NAME
     model_dir = Path(model_name.split("/")[-1])
     model_dir = Path("ov-model") / model_dir
@@ -239,13 +239,16 @@ def initialize_model():
         model_config = load_model_config(model_name.split("/")[-1].lower())
         ov_config = settings.get_ov_config_dict()
         logger.debug(f"Using OpenVINO configuration: {ov_config}")
-        if ModelNames.PHI in model_name.lower():
+        if (
+            ModelNames.PHI in model_name.lower()
+            or ModelNames.SMOLVLM in model_name.lower()
+        ):
             pipe = OVModelForVisualCausalLM.from_pretrained(
                 model_dir,
                 device=settings.VLM_DEVICE.upper(),
                 trust_remote_code=True,
                 use_cache=False,
-                ov_config=ov_config
+                ov_config=ov_config,
             )
             processor = AutoProcessor.from_pretrained(
                 model_name, trust_remote_code=True
@@ -258,7 +261,7 @@ def initialize_model():
                 device=settings.VLM_DEVICE.upper(),
                 trust_remote_code=True,
                 use_cache=False,
-                ov_config=ov_config
+                ov_config=ov_config,
             )
             processor = AutoProcessor.from_pretrained(
                 model_dir,
@@ -267,7 +270,9 @@ def initialize_model():
                 max_pixels=int(eval(model_config.get("max_pixels"))),
             )
         else:
-            pipe = ov_genai.VLMPipeline(model_dir, device=settings.VLM_DEVICE.upper(), **ov_config)
+            pipe = ov_genai.VLMPipeline(
+                model_dir, device=settings.VLM_DEVICE.upper(), **ov_config
+            )
             processor = None  # No processor needed for this case
         model_ready = is_model_ready(model_dir)
         logger.debug("Model is ready")
@@ -376,7 +381,7 @@ async def chat_completions(request: ChatRequest):
         seed = request.seed if request.seed is not None else settings.SEED
         setup_seed(seed)
 
-        global pipe, processor, model_dir
+        global pipe, processor, model_dir, model_config
         logger.info("Received a chat completion request.")
         logger.debug(f"chat request: {request}")
         # Process the request and generate a response
@@ -672,10 +677,155 @@ async def chat_completions(request: ChatRequest):
                     **video_kwargs,
                 )
             else:
-                logger.error("Invalid input: No valid image, video, or text prompt provided.")
+                logger.error(
+                    "Invalid input: No valid image, video, or text prompt provided."
+                )
                 return JSONResponse(
                     status_code=400,
-                    content={"error": "Invalid input: No valid image, video, or text prompt provided."},
+                    content={
+                        "error": "Invalid input: No valid image, video, or text prompt provided."
+                    },
+                )
+
+            streamer = TextIteratorStreamer(
+                processor,
+                skip_special_tokens=True,
+                skip_prompt=True,
+                clean_up_tokenization_spaces=False,
+            )
+            generation_kwargs = dict(
+                **inputs,
+                streamer=streamer,
+                max_new_tokens=request.max_completion_tokens,
+                top_p=request.top_p,
+                top_k=request.top_k,
+                do_sample=request.do_sample,
+                temperature=request.temperature,
+                eos_token_id=processor.tokenizer.eos_token_id,
+            )
+
+            thread = Thread(
+                target=safe_generate, args=(pipe, generation_kwargs, streamer)
+            )
+            thread.start()
+
+            if request.stream:
+                return create_streaming_response(
+                    streamer, request, settings.VLM_MODEL_NAME
+                )
+            else:
+                buffer = ""
+                for new_text in streamer:
+                    buffer += new_text
+                    logger.debug(new_text)
+                return ChatCompletionResponse(
+                    id=str(uuid.uuid4()),
+                    object="chat.completion",
+                    created=int(time.time()),
+                    model=request.model,
+                    choices=[
+                        ChatCompletionChoice(
+                            index=0,
+                            message=ChatCompletionDelta(
+                                role="assistant", content=str(buffer)
+                            ),
+                            finish_reason="stop",
+                        )
+                    ],
+                )
+
+        elif ModelNames.SMOLVLM in settings.VLM_MODEL_NAME.lower():
+            logger.info("Using SmolVLM2 model for processing.")
+
+            if len(image_urls) == 0 and video_url is None:
+                logger.info("processing as text prompt")
+                # Create formatted_messages only for MessageContentText or str
+                formatted_messages = []
+                for message in request.messages:
+                    if isinstance(message.content, str):
+                        formatted_messages.append(
+                            {"role": message.role, "content": message.content}
+                        )
+                    else:
+                        for content in message.content:
+                            if isinstance(content, MessageContentText):
+                                formatted_messages.append(
+                                    {"role": message.role, "content": content.text}
+                                )
+                text = processor.apply_chat_template(
+                    formatted_messages, tokenize=False, add_generation_prompt=True
+                )
+                logger.debug(f"text: {text}")
+                inputs = processor(
+                    text=[text],
+                    padding=True,
+                    return_tensors="pt",
+                )
+            elif len(image_urls) > 0:
+                logger.info("processing as single/multiple image prompt")
+                # Load images first for SmolVLM2
+                images, _ = await load_images(image_urls)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [{"type": "image", "image": img} for img in images]
+                        + [{"type": "text", "text": prompt}],
+                    }
+                ]
+                inputs = processor.apply_chat_template(
+                    messages,
+                    add_generation_prompt=True,
+                    tokenize=True,
+                    return_dict=True,
+                    return_tensors="pt",
+                )
+            elif video_url:
+                logger.info("processing as video_url")
+                video_content = {
+                    "type": "video",
+                    "path": video_url,
+                }
+                # SmolVLM2 supports fps parameter for video processing
+                if fps is not None:
+                    video_content["fps"] = fps
+
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            video_content,
+                            {"type": "text", "text": prompt},
+                        ],
+                    }
+                ]
+                # Use apply_chat_template with video-specific parameters
+                # Only override model defaults if explicitly provided in config or API request
+                apply_chat_kwargs = {
+                    "add_generation_prompt": True,
+                    "tokenize": True,
+                    "return_dict": True,
+                    "return_tensors": "pt",
+                    "video_load_backend": get_best_video_backend(),  # Use best available backend
+                }
+
+                # Only add fps if explicitly provided by user
+                if fps is not None:
+                    apply_chat_kwargs["target_fps"] = fps
+
+                # Only add max_frames if explicitly provided in config
+                if model_config and "max_frames" in model_config:
+                    apply_chat_kwargs["max_frames"] = model_config["max_frames"]
+
+                inputs = processor.apply_chat_template(messages, **apply_chat_kwargs)
+            else:
+                logger.error(
+                    "Invalid input: No valid image, video, or text prompt provided."
+                )
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": "Invalid input: No valid image, video, or text prompt provided."
+                    },
                 )
 
             streamer = TextIteratorStreamer(
@@ -764,6 +914,10 @@ async def chat_completions(request: ChatRequest):
     except Exception as e:
         logger.info("Exception encountered during chat completion request.")
         logger.error(f"{ErrorMessages.CHAT_COMPLETION_ERROR}: {e}")
+        # Add stack trace for debugging
+        import traceback
+
+        logger.error(f"Full stack trace:\n{traceback.format_exc()}")
         if ErrorMessages.GPU_OOM_ERROR_MESSAGE in str(e):
             logger.info("Detected GPU out-of-memory error. Restarting server...")
             restart_server()
