@@ -23,7 +23,7 @@ export const PromptInputModal: FC = () => {
 
   const { t } = useTranslation();
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>();
 
   const [currentVal, setCurrentVal] = useState<string>('');
   const [unusedVars, setUnusedVars] = useState<string[]>([]);
