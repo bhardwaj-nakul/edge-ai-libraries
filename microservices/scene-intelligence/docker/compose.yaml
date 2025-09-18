@@ -135,7 +135,7 @@ services:
       - scenescape
     environment:
       - "DBROOT=/workspace"
-      - "EXAMPLEDB=scene-intelligence.tar.bz2"
+      - "EXAMPLEDB=smart-intersection-ri.tar.bz2"
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - no_proxy=${no_proxy_env},.scenescape.intel.com,${HOST_IP}
@@ -147,7 +147,7 @@ services:
         "-e",
         "-c",
         "cp /tmp/user_access_config.json /home/scenescape/SceneScape/user_access_config.json && \
-        cp /tmp/scene-intelligence.tar.bz2 /home/scenescape/SceneScape/scene-intelligence.tar.bz2 && \
+        cp /tmp/smart-intersection-ri.tar.bz2 /home/scenescape/SceneScape/smart-intersection-ri.tar.bz2 && \
         chown -R scenescape:scenescape /workspace && \
         SUPASS=$(cat /run/secrets/supass) /usr/local/bin/scenescape-init database --preloadexample",
       ]
@@ -162,7 +162,7 @@ services:
       - pgserver-migrations:/workspace/migrations
       - pgserver-media:/workspace/media
       - ../src/webserver/user_access_config.json:/tmp/user_access_config.json
-      - ../src/webserver/scene-intelligence.tar.bz2:/tmp/scene-intelligence.tar.bz2
+      - ../src/webserver/smart-intersection-ri.tar.bz2:/tmp/smart-intersection-ri.tar.bz2
     secrets:
       - django
       - browser.auth
@@ -260,66 +260,66 @@ services:
     restart: on-failure:5
 
   # Scene Intelligence API Service
-  scene-intelligence:
-    image: ${REGISTRY:-}scene-intelligence:${TAG:-latest}
-    container_name: scene-intelligence-api
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    ports:
-      - "${SCENE_INTELLIGENCE_PORT:-8081}:8080"
-    depends_on:
-      web:
-        condition: service_healthy
-      broker:
-        condition: service_started
-      vlm-openvino-serving:
-        condition: service_healthy
-    environment:
-      - SCENESCAPE_URL=${SCENESCAPE_URL:-https://web.scenescape.intel.com}
-      - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-broker.scenescape.intel.com}
-      - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SCENE_INTELLIGENCE_CONFIG=${SCENE_INTELLIGENCE_CONFIG:-/app/config/scene_intelligence_config.json}
-      - TRAFFIC_BUFFER_DURATION=${TRAFFIC_BUFFER_DURATION:-60}
-      - DATA_RETENTION_HOURS=${DATA_RETENTION_HOURS:-24}
-      # VLM Service Configuration
-      - VLM_BASE_URL=${VLM_BASE_URL:-http://vlm-openvino-serving:8000}
-      - VLM_MODEL=${VLM_MODEL:-Qwen/Qwen2.5-VL-3B-Instruct}
-      - VLM_WORKERS=${VLM_WORKERS:-4}
-      - HIGH_DENSITY_THRESHOLD=${HIGH_DENSITY_THRESHOLD:-5.0}
-      - MINIMUM_DURATION_FOR_CONSISTENTLY_HIGH_TRAFFIC_SECONDS=${MINIMUM_DURATION_FOR_CONSISTENTLY_HIGH_TRAFFIC_SECONDS:-2}
-      - VLM_COOLDOWN_MINUTES=${VLM_COOLDOWN_MINUTES:-1}
-      - VLM_TIMEOUT_SECONDS=${VLM_TIMEOUT_SECONDS:-10}
-      - VLM_MAX_COMPLETION_TOKENS=${VLM_MAX_COMPLETION_TOKENS:-500}
-      - VLM_TEMPERATURE=${VLM_TEMPERATURE:-0.3}
-      - VLM_TOP_P=${VLM_TOP_P:-0.9}
-      - VLM_CONFIG_FILE=${VLM_CONFIG_FILE:-config/vlm_config.json}
-      # VLM prompt environment variables are optional overrides
-      # If you want to override prompts, set these in your environment:
-      # - VLM_SYSTEM_PROMPT="Your custom system prompt"
-      # - VLM_TRAFFIC_ANALYSIS_PROMPT="Your custom analysis prompt"
-      # Proxy settings
-      - http_proxy=${http_proxy}
-      - https_proxy=${https_proxy}
-      - no_proxy=${no_proxy_env},.scenescape.intel.com,vlm-openvino-serving,${HOST_IP}
-      - NO_PROXY=${no_proxy_env},.scenescape.intel.com,vlm-openvino-serving,${HOST_IP}
-      - HTTP_PROXY=${http_proxy}
-      - HTTPS_PROXY=${https_proxy}
-    volumes:
-      - ../config:/app/config:ro
-    secrets:
-      - source: root-cert
-        target: root-cert
-    networks:
-      - scenescape
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: ${HEALTH_CHECK_INTERVAL:-30s}
-      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
-      retries: ${HEALTH_CHECK_RETRIES:-3}
-      start_period: ${HEALTH_CHECK_START_PERIOD:-10s}
-    restart: unless-stopped
+  # scene-intelligence:
+  #   image: ${REGISTRY:-}scene-intelligence:${TAG:-latest}
+  #   container_name: scene-intelligence-api
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile
+  #   ports:
+  #     - "${SCENE_INTELLIGENCE_PORT:-8081}:8080"
+  #   depends_on:
+  #     web:
+  #       condition: service_healthy
+  #     broker:
+  #       condition: service_started
+  #     vlm-openvino-serving:
+  #       condition: service_healthy
+  #   environment:
+  #     - SCENESCAPE_URL=${SCENESCAPE_URL:-https://web.scenescape.intel.com}
+  #     - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-broker.scenescape.intel.com}
+  #     - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
+  #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
+  #     - SCENE_INTELLIGENCE_CONFIG=${SCENE_INTELLIGENCE_CONFIG:-/app/config/scene_intelligence_config.json}
+  #     - TRAFFIC_BUFFER_DURATION=${TRAFFIC_BUFFER_DURATION:-60}
+  #     - DATA_RETENTION_HOURS=${DATA_RETENTION_HOURS:-24}
+  #     # VLM Service Configuration
+  #     - VLM_BASE_URL=${VLM_BASE_URL:-http://vlm-openvino-serving:8000}
+  #     - VLM_MODEL=${VLM_MODEL:-Qwen/Qwen2.5-VL-3B-Instruct}
+  #     - VLM_WORKERS=${VLM_WORKERS:-4}
+  #     - HIGH_DENSITY_THRESHOLD=${HIGH_DENSITY_THRESHOLD:-5.0}
+  #     - MINIMUM_DURATION_FOR_CONSISTENTLY_HIGH_TRAFFIC_SECONDS=${MINIMUM_DURATION_FOR_CONSISTENTLY_HIGH_TRAFFIC_SECONDS:-2}
+  #     - VLM_COOLDOWN_MINUTES=${VLM_COOLDOWN_MINUTES:-1}
+  #     - VLM_TIMEOUT_SECONDS=${VLM_TIMEOUT_SECONDS:-10}
+  #     - VLM_MAX_COMPLETION_TOKENS=${VLM_MAX_COMPLETION_TOKENS:-500}
+  #     - VLM_TEMPERATURE=${VLM_TEMPERATURE:-0.3}
+  #     - VLM_TOP_P=${VLM_TOP_P:-0.9}
+  #     - VLM_CONFIG_FILE=${VLM_CONFIG_FILE:-config/vlm_config.json}
+  #     # VLM prompt environment variables are optional overrides
+  #     # If you want to override prompts, set these in your environment:
+  #     # - VLM_SYSTEM_PROMPT="Your custom system prompt"
+  #     # - VLM_TRAFFIC_ANALYSIS_PROMPT="Your custom analysis prompt"
+  #     # Proxy settings
+  #     - http_proxy=${http_proxy}
+  #     - https_proxy=${https_proxy}
+  #     - no_proxy=${no_proxy_env},.scenescape.intel.com,vlm-openvino-serving,${HOST_IP}
+  #     - NO_PROXY=${no_proxy_env},.scenescape.intel.com,vlm-openvino-serving,${HOST_IP}
+  #     - HTTP_PROXY=${http_proxy}
+  #     - HTTPS_PROXY=${https_proxy}
+  #   volumes:
+  #     - ../config:/app/config:ro
+  #   secrets:
+  #     - source: root-cert
+  #       target: root-cert
+  #   networks:
+  #     - scenescape
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  #     interval: ${HEALTH_CHECK_INTERVAL:-30s}
+  #     timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+  #     retries: ${HEALTH_CHECK_RETRIES:-3}
+  #     start_period: ${HEALTH_CHECK_START_PERIOD:-10s}
+  #   restart: unless-stopped
 
   # VLM OpenVINO Serving Service
   vlm-openvino-serving:
