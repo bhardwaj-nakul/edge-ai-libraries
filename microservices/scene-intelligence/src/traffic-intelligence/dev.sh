@@ -28,13 +28,13 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  setup     - Create virtual environment and install dependencies"
-    echo "  run       - Run the traffic intelligence service"
-    echo "  dev       - Run with development settings (debug mode)"
+    echo "  run       - Run the traffic intelligence service (backend only)"
+    echo "  dev       - Run with development settings (debug mode, backend only)"
+    echo "  ui        - Run the UI dashboard only"
+    echo "  full      - Run both backend and UI services together"
+    echo "  full-dev  - Run both services in development mode"
     echo "  test      - Run tests"
     echo "  lint      - Run linting and formatting"
-    echo "  example   - Run the example client"
-    echo "  mqtt-test - Test MQTT connection"
-    echo "  mqtt-fix  - Fix MQTT SSL configuration issues"
     echo "  clean     - Clean up virtual environment"
     echo "  docker    - Build and run with Docker"
     echo "  help      - Show this help message"
@@ -48,9 +48,13 @@ setup() {
     uv venv
     echo -e "${GREEN}✓ Virtual environment created${NC}"
     
-    # Install dependencies
+    # Install dependencies for backend
     uv pip install -r requirements.txt
-    echo -e "${GREEN}✓ Dependencies installed${NC}"
+    echo -e "${GREEN}✓ Backend dependencies installed${NC}"
+    
+    # Install UI dependencies
+    uv pip install -r ui/requirements.txt
+    echo -e "${GREEN}✓ UI dependencies installed${NC}"
     
     # Install development dependencies
     uv pip install pytest pytest-asyncio httpx black flake8 mypy
@@ -101,6 +105,107 @@ run_dev() {
     run_service
 }
 
+# Run UI only
+run_ui() {
+    echo -e "${YELLOW}Starting UI Dashboard only...${NC}"
+    
+    # Set UI environment variables
+    export APP_PORT=${APP_PORT:-7860}
+    export APP_HOST=${APP_HOST:-0.0.0.0}
+    export USE_API=${USE_API:-true}
+    export API_URL=${API_URL:-"http://localhost:8081/api/v1/traffic/current"}
+    export REFRESH_INTERVAL=${REFRESH_INTERVAL:-15}
+    
+    echo "UI Configuration:"
+    echo "  Port: $APP_PORT"
+    echo "  Host: $APP_HOST"
+    echo "  API URL: $API_URL"
+    echo "  Use API: $USE_API"
+    echo "  Refresh Interval: $REFRESH_INTERVAL seconds"
+    echo ""
+    
+    # Navigate to UI directory and run
+    cd ui && uv run python app.py
+}
+
+# Run both backend and UI services
+run_full() {
+    echo -e "${YELLOW}Starting both Backend and UI services...${NC}"
+    
+    # Set default environment variables for both services
+    export TRAFFIC_INTELLIGENCE_PORT=${TRAFFIC_INTELLIGENCE_PORT:-8081}
+    export TRAFFIC_INTELLIGENCE_HOST=${TRAFFIC_INTELLIGENCE_HOST:-0.0.0.0}
+    export LOG_LEVEL=${LOG_LEVEL:-INFO}
+    export INTERSECTION_ID=${INTERSECTION_ID:-"97781c36-b53a-4749-87e6-8815da99bac7"}
+    export INTERSECTION_NAME=${INTERSECTION_NAME:-"Intersection-Demo"}
+    
+    # MQTT settings
+    export MQTT_USE_TLS=${MQTT_USE_TLS:-true}
+    export MQTT_HOST=${MQTT_HOST:-localhost}
+    export MQTT_PORT=${MQTT_PORT:-1883}
+    
+    # UI settings
+    export APP_PORT=${APP_PORT:-7860}
+    export APP_HOST=${APP_HOST:-0.0.0.0}
+    export USE_API=${USE_API:-true}
+    export API_URL=${API_URL:-"http://localhost:$TRAFFIC_INTELLIGENCE_PORT/api/v1/traffic/current"}
+    export REFRESH_INTERVAL=${REFRESH_INTERVAL:-15}
+    
+    echo "Full System Configuration:"
+    echo "  Backend Port: $TRAFFIC_INTELLIGENCE_PORT"
+    echo "  UI Port: $APP_PORT"
+    echo "  Host: $TRAFFIC_INTELLIGENCE_HOST"
+    echo "  Log Level: $LOG_LEVEL"
+    echo "  Intersection: $INTERSECTION_NAME"
+    echo "  MQTT Host: $MQTT_HOST"
+    echo "  MQTT TLS: $MQTT_USE_TLS"
+    echo "  API URL: $API_URL"
+    echo ""
+    
+    # Function to cleanup background processes
+    cleanup() {
+        echo -e "${YELLOW}Shutting down services...${NC}"
+        kill $BACKEND_PID 2>/dev/null || true
+        kill $UI_PID 2>/dev/null || true
+        exit 0
+    }
+    
+    # Set up signal handling
+    trap cleanup INT TERM
+    
+    echo -e "${GREEN}Starting backend service...${NC}"
+    # Start backend in background
+    uv run python run.py &
+    BACKEND_PID=$!
+    
+    # Wait a moment for backend to start
+    sleep 3
+    
+    echo -e "${GREEN}Starting UI dashboard...${NC}"
+    # Start UI in background
+    cd ui && uv run python app.py &
+    UI_PID=$!
+    cd ..
+    
+    echo -e "${GREEN}Both services started!${NC}"
+    echo "Backend API: http://$TRAFFIC_INTELLIGENCE_HOST:$TRAFFIC_INTELLIGENCE_PORT"
+    echo "UI Dashboard: http://$APP_HOST:$APP_PORT"
+    echo ""
+    echo "Press Ctrl+C to stop both services"
+    
+    # Wait for either process to exit
+    wait $BACKEND_PID $UI_PID
+}
+
+# Run both services in development mode
+run_full_dev() {
+    echo -e "${YELLOW}Starting both services in development mode...${NC}"
+    export LOG_LEVEL=DEBUG
+    export TRAFFIC_INTELLIGENCE_PORT=8081
+    export APP_PORT=7860
+    run_full
+}
+
 # Run tests
 run_tests() {
     echo -e "${YELLOW}Running tests...${NC}"
@@ -113,24 +218,6 @@ run_lint() {
     uv run black .
     uv run flake8 .
     uv run mypy . --ignore-missing-imports
-}
-
-# Run example client
-run_example() {
-    echo -e "${YELLOW}Running example client...${NC}"
-    uv run python examples/example_usage.py
-}
-
-# Test MQTT connection
-test_mqtt() {
-    echo -e "${YELLOW}Testing MQTT connection...${NC}"
-    uv run python mqtt_test.py --no-tls
-}
-
-# Fix MQTT SSL issues
-fix_mqtt() {
-    echo -e "${YELLOW}Running MQTT SSL fix...${NC}"
-    ./fix_mqtt_ssl.sh
 }
 
 # Clean up
@@ -160,20 +247,20 @@ case "${1:-help}" in
     dev)
         run_dev
         ;;
+    ui)
+        run_ui
+        ;;
+    full)
+        run_full
+        ;;
+    full-dev)
+        run_full_dev
+        ;;
     test)
         run_tests
         ;;
     lint)
         run_lint
-        ;;
-    example)
-        run_example
-        ;;
-    mqtt-test)
-        test_mqtt
-        ;;
-    mqtt-fix)
-        fix_mqtt
         ;;
     clean)
         clean

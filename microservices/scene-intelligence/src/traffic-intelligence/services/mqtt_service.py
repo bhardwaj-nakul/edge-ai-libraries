@@ -191,6 +191,15 @@ class MQTTService:
             for topic in self.image_topics:
                 client.subscribe(topic, qos=1)
                 logger.info("Subscribed to image topic", topic=topic)
+            
+            # Automatically trigger getimage commands once connected and subscribed
+            if self.loop:
+                asyncio.run_coroutine_threadsafe(
+                    self._trigger_initial_getimage_commands(),
+                    self.loop
+                )
+            else:
+                logger.warning("No event loop set, cannot trigger initial getimage commands")
                 
         else:
             self.connected = False
@@ -381,6 +390,28 @@ class MQTTService:
         except Exception as e:
             logger.error("Failed to send getimage commands", error=str(e))
             return False
+
+    async def _trigger_initial_getimage_commands(self) -> None:
+        """
+        Trigger initial getimage commands after MQTT connection is established.
+        
+        This method is called automatically when the MQTT connection is established
+        to request initial images from all cameras.
+        """
+        try:
+            # Small delay to ensure subscriptions are fully established
+            await asyncio.sleep(1.0)
+            
+            logger.info("Triggering initial getimage commands for all cameras")
+            success = await self.send_getimage_commands()
+            
+            if success:
+                logger.info("Initial getimage commands sent successfully")
+            else:
+                logger.warning("Failed to send initial getimage commands")
+                
+        except Exception as e:
+            logger.error("Error triggering initial getimage commands", error=str(e))
         
     async def _process_camera_image_message(self,
                                            camera_number: str,

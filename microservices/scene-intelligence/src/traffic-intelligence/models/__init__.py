@@ -31,7 +31,11 @@ class WeatherData:
     detailed_forecast: str       # Detailed weather description
     fetched_at: datetime         # When weather data was retrieved
     is_precipitation: bool = False  # Whether there's rain/snow
-    is_mock: bool = False           # Whether this is mock data 
+    is_mock: bool = False           # Whether this is mock data
+    wind_speed: str = "0 mph"        # Wind speed (e.g., "5 mph", "0 to 5 mph")
+    wind_direction: str = "N"        # Wind direction (e.g., "NE", "SW")
+    short_forecast: str = "Clear"    # Short weather description (e.g., "Sunny")
+    wind_info: str = "0mph/N"        # Combined wind speed and direction (e.g., "3mph/W") 
 
 
 @dataclass
@@ -77,6 +81,13 @@ class IntersectionData:
     east_camera: int = 0
     west_camera: int = 0
     total_density: int = 0
+    
+    # Pedestrian counts by direction
+    north_pedestrian: int = 0
+    south_pedestrian: int = 0
+    east_pedestrian: int = 0
+    west_pedestrian: int = 0
+    total_pedestrian_count: int = 0
 
 
 @dataclass

@@ -134,8 +134,6 @@ class DataAggregatorService:
             # print(f"Vehicle Count: {camera_message.vehicle_count}")
             # print(f"Pedestrian Count: {camera_message.pedestrian_count}")
             # print(f"Message Timestamp: {camera_message.timestamp}")
-            
-            # print(f"Current active cameras: {list(self.current_camera_data.keys())}")
             # print("=" * 40)
             
             # Update temporary camera data
@@ -154,22 +152,6 @@ class DataAggregatorService:
             
             # Check if VLM analysis should be triggered
             await self._check_analysis_trigger()
-            
-            # # print summary of all camera data
-            # print(f"\n=== ALL CAMERAS SUMMARY ===")
-            total_vehicles = 0
-            total_pedestrians = 0
-            for direction, camera_data in self.current_camera_data.items():
-                # print(f"{direction.upper():>5}: Vehicles={camera_data.vehicle_count:>3}, Pedestrians={camera_data.pedestrian_count:>3}, Camera={camera_data.camera_id}")
-                total_vehicles += camera_data.vehicle_count
-                total_pedestrians += camera_data.pedestrian_count
-            # print(f"TOTAL: Vehicles={total_vehicles:>3}, Pedestrians={total_pedestrians:>3}")
-            # print("=" * 30)
-            
-            logger.debug("Camera data processed", 
-                       direction=direction,
-                       vehicle_count=camera_message.vehicle_count,
-                       total_cameras=len(self.current_camera_data))
                     
         except Exception as e:
             logger.error("Failed to process camera data", error=str(e))
@@ -186,7 +168,14 @@ class DataAggregatorService:
         east_count = self.temp_camera_data.get('east', CameraDataMessage('', '', 'east', 0)).vehicle_count
         west_count = self.temp_camera_data.get('west', CameraDataMessage('', '', 'west', 0)).vehicle_count
         
+        # Calculate pedestrian counts from temporary data
+        north_pedestrian = self.temp_camera_data.get('north', CameraDataMessage('', '', 'north', 0, 0)).pedestrian_count
+        south_pedestrian = self.temp_camera_data.get('south', CameraDataMessage('', '', 'south', 0, 0)).pedestrian_count
+        east_pedestrian = self.temp_camera_data.get('east', CameraDataMessage('', '', 'east', 0, 0)).pedestrian_count
+        west_pedestrian = self.temp_camera_data.get('west', CameraDataMessage('', '', 'west', 0, 0)).pedestrian_count
+        
         total_count = north_count + south_count + east_count + west_count
+        total_pedestrian_count = north_pedestrian + south_pedestrian + east_pedestrian + west_pedestrian
         
         self.temp_intersection_data = IntersectionData(
             intersection_id=intersection_id,
@@ -198,13 +187,21 @@ class DataAggregatorService:
             south_camera=south_count,
             east_camera=east_count,
             west_camera=west_count,
-            total_density=total_count
+            total_density=total_count,
+            north_pedestrian=north_pedestrian,
+            south_pedestrian=south_pedestrian,
+            east_pedestrian=east_pedestrian,
+            west_pedestrian=west_pedestrian,
+            total_pedestrian_count=total_pedestrian_count
         )
         
         logger.debug("Temporary intersection data updated", 
                    total_density=total_count,
+                   total_pedestrian_count=total_pedestrian_count,
                    north=north_count, south=south_count, 
-                   east=east_count, west=west_count)
+                   east=east_count, west=west_count,
+                   north_ped=north_pedestrian, south_ped=south_pedestrian,
+                   east_ped=east_pedestrian, west_ped=west_pedestrian)
     
     def _create_temp_traffic_snapshot(self) -> Optional[TrafficSnapshot]:
         """Create a traffic snapshot from temporary data for VLM analysis."""
@@ -444,6 +441,7 @@ class DataAggregatorService:
             logger.info("VLM-analyzed traffic intelligence response created",
                        intersection_id=response.intersection_id,
                        total_density=self.vlm_analyzed_intersection_data.total_density,
+                       total_pedestrian_count=self.vlm_analyzed_intersection_data.total_pedestrian_count,
                        camera_images_count=len(camera_images_dict),
                        alerts_count=len(self.current_vlm_analysis.alerts))
             
@@ -496,7 +494,9 @@ class DataAggregatorService:
             "intersection_id": self.config.get_intersection_id(),
             "intersection_name": self.config.get_intersection_name(),
             "current_traffic_density": self.vlm_analyzed_intersection_data.total_density if self.vlm_analyzed_intersection_data else 0,
+            "current_pedestrian_count": self.vlm_analyzed_intersection_data.total_pedestrian_count if self.vlm_analyzed_intersection_data else 0,
             "temp_traffic_density": self.temp_intersection_data.total_density if self.temp_intersection_data else 0,
+            "temp_pedestrian_count": self.temp_intersection_data.total_pedestrian_count if self.temp_intersection_data else 0,
             "active_temp_cameras": len(self.temp_camera_data),
             "active_analyzed_cameras": len(self.vlm_analyzed_camera_data),
             "temp_camera_directions": list(self.temp_camera_data.keys()),

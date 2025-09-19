@@ -57,13 +57,26 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
         # Extract traffic data
         traffic_data = raw_data.get("data", {})
         
-        # Create region counts (use zeros if not available)
-        region_counts = {}
-        for region_id in ["region_1", "region_2", "region_3", "region_4"]:
-            region_counts[region_id] = RegionCount(
-                vehicle=0,  # API doesn't provide region-specific counts
-                pedestrian=0
+        # Create region counts mapping pedestrian data from API
+        # Map directional pedestrian counts to regions
+        region_counts = {
+            "region_1": RegionCount(  # North
+                vehicle=0,  # API doesn't provide region-specific vehicle counts
+                pedestrian=traffic_data.get("north_pedestrian", 0)
+            ),
+            "region_2": RegionCount(  # South  
+                vehicle=0,
+                pedestrian=traffic_data.get("south_pedestrian", 0)
+            ),
+            "region_3": RegionCount(  # East
+                vehicle=0,
+                pedestrian=traffic_data.get("east_pedestrian", 0)
+            ),
+            "region_4": RegionCount(  # West
+                vehicle=0,
+                pedestrian=traffic_data.get("west_pedestrian", 0)
             )
+        }
         
         # Parse intersection data
         # Create IntersectionData from the main data
@@ -79,7 +92,8 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
             eastbound_density=traffic_data.get("east_camera", 0),    # Map east_camera to eastbound_density
             westbound_density=traffic_data.get("west_camera", 0),    # Map west_camera to westbound_density
             total_density=traffic_data.get("total_density", 0),
-            region_counts=region_counts  # Use the region_counts created above
+            region_counts=region_counts,  # Use the region_counts created above
+            total_pedestrian_count=traffic_data.get("total_pedestrian_count", 0)  # Get total pedestrian count from API
         )
         
         # Parse camera data - handle the new API structure
@@ -162,14 +176,59 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
         
         # Parse weather data
         weather_data_raw = raw_data.get("weather_data", {})
+        
+        # Extract wind information from the new API format
+        wind_speed_str = weather_data_raw.get("wind_speed", "0 mph")
+        wind_direction_str = weather_data_raw.get("wind_direction", "N")
+        
+        # Parse wind speed to mph
+        import re
+        speed_match = re.search(r'(\d+)', wind_speed_str)
+        wind_speed_mph = float(speed_match.group(1)) if speed_match else 0.0
+        
+        # Convert wind direction to degrees
+        direction_map = {
+            "N": 0, "NNE": 22, "NE": 45, "ENE": 67,
+            "E": 90, "ESE": 112, "SE": 135, "SSE": 157,
+            "S": 180, "SSW": 202, "SW": 225, "WSW": 247,
+            "W": 270, "WNW": 292, "NW": 315, "NNW": 337
+        }
+        wind_direction_degrees = direction_map.get(wind_direction_str.upper(), 0)
+        
+        # Estimate precipitation based on forecast and is_precipitation flag
+        precipitation_mm = 0.0
+        if weather_data_raw.get("is_precipitation", False):
+            # Estimate precipitation amount based on forecast text
+            forecast = weather_data_raw.get("detailed_forecast", "").lower()
+            if "heavy" in forecast or "storm" in forecast:
+                precipitation_mm = 10.0
+            elif "moderate" in forecast or "rain" in forecast:
+                precipitation_mm = 5.0
+            elif "light" in forecast or "slight" in forecast or "chance" in forecast:
+                precipitation_mm = 1.0
+        
+        # Convert temperature to Fahrenheit if needed (API provides in F)
+        temperature_f = weather_data_raw.get("temperature", 70)
+        
+        # Estimate humidity (API doesn't provide this, use reasonable default based on precipitation)
+        humidity = 50
+        if weather_data_raw.get("is_precipitation", False):
+            humidity = 75
+        elif "clear" in weather_data_raw.get("short_forecast", "").lower():
+            humidity = 40
+        
+        # Use short_forecast for conditions if available, otherwise detailed_forecast
+        conditions = weather_data_raw.get("short_forecast", 
+                                         weather_data_raw.get("detailed_forecast", "Unknown"))
+        
         weather_data = WeatherData(
             timestamp=weather_data_raw.get("fetched_at", ""),
-            temperature_celsius=convert_fahrenheit_to_celsius(weather_data_raw.get("temperature", 70)),
-            humidity_percent=50,  # Default value as API doesn't provide
-            precipitation_mm=0.0 if not weather_data_raw.get("is_precipitation", False) else 1.0,
-            wind_speed_kph=0.0,  # Default value as API doesn't provide
-            wind_direction_degrees=0,  # Default value as API doesn't provide
-            conditions=weather_data_raw.get("detailed_forecast", "Unknown")
+            temperature_fahrenheit=temperature_f,
+            humidity_percent=humidity,
+            precipitation_mm=precipitation_mm,
+            wind_speed_mph=wind_speed_mph,
+            wind_direction_degrees=wind_direction_degrees,
+            conditions=conditions
         )
         
         # Create complete monitoring data object
@@ -274,10 +333,10 @@ def load_monitoring_data(file_path: str = "data.json", use_api: bool = True, api
         # Parse weather data
         weather_data = WeatherData(
             timestamp=raw_data["weather_data"]["timestamp"],
-            temperature_celsius=raw_data["weather_data"]["temperature_celsius"],
+            temperature_fahrenheit=raw_data["weather_data"]["temperature_fahrenheit"],
             humidity_percent=raw_data["weather_data"]["humidity_percent"],
             precipitation_mm=raw_data["weather_data"]["precipitation_mm"],
-            wind_speed_kph=raw_data["weather_data"]["wind_speed_kph"],
+            wind_speed_mph=raw_data["weather_data"]["wind_speed_mph"],
             wind_direction_degrees=raw_data["weather_data"]["wind_direction_degrees"],
             conditions=raw_data["weather_data"]["conditions"]
         )

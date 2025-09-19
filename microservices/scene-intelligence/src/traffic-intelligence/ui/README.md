@@ -73,7 +73,6 @@ agent_ui/
 ├── data_loader.py        # Data loading and parsing
 ├── ui_components.py      # UI component generators
 ├── auto_refresh.py       # Auto-refresh functionality
-├── data.json            # Sample monitoring data
 ├── requirements.txt     # Python dependencies
 ├── start.sh            # Startup script
 └── README.md           # This file
@@ -109,10 +108,10 @@ The system expects `data.json` to follow this structure:
     "alerts": ["URGENT: UNIDENTIFIED OBJECT DETECTED NEAR CAM 4"]
   },
   "weather_data": {
-    "temperature_celsius": 28,
+    "temperature_fahrenheit": 28,
     "humidity_percent": 55,
     "precipitation_mm": 0.0,
-    "wind_speed_kph": 12.0,
+    "wind_speed_mph": 12.0,
     "wind_direction_degrees": 180,
     "conditions": "Clear Sky"
   }

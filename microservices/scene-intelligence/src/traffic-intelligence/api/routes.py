@@ -64,7 +64,12 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "south_camera": traffic_response.data.south_camera,
                 "east_camera": traffic_response.data.east_camera,
                 "west_camera": traffic_response.data.west_camera,
-                "total_density": traffic_response.data.total_density
+                "total_density": traffic_response.data.total_density,
+                "north_pedestrian": traffic_response.data.north_pedestrian,
+                "south_pedestrian": traffic_response.data.south_pedestrian,
+                "east_pedestrian": traffic_response.data.east_pedestrian,
+                "west_pedestrian": traffic_response.data.west_pedestrian,
+                "total_pedestrian_count": traffic_response.data.total_pedestrian_count
             },
             "camera_images": traffic_response.camera_images,
             "weather_data": {
@@ -72,6 +77,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "temperature": traffic_response.weather_data.temperature,
                 "temperature_unit": traffic_response.weather_data.temperature_unit,
                 "detailed_forecast": traffic_response.weather_data.detailed_forecast,
+                "short_forecast": traffic_response.weather_data.short_forecast,
+                "wind_speed": traffic_response.weather_data.wind_speed,
+                "wind_direction": traffic_response.weather_data.wind_direction,
+                "wind_info": f"{traffic_response.weather_data.wind_speed.replace(' ', '')}/{traffic_response.weather_data.wind_direction}",
                 "fetched_at": traffic_response.weather_data.fetched_at.isoformat(),
                 "is_precipitation": traffic_response.weather_data.is_precipitation,
             },
@@ -94,6 +103,7 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
         logger.info("Current traffic intelligence served",
                    intersection_id=traffic_response.intersection_id,
                    total_density=traffic_response.data.total_density,
+                   total_pedestrian_count=traffic_response.data.total_pedestrian_count,
                    alerts_count=len(traffic_response.vlm_analysis.alerts))
         
         return response_dict
@@ -126,6 +136,10 @@ async def get_current_weather(request: Request) -> Dict[str, Any]:
             "temperature": weather_data.temperature,
             "temperature_unit": weather_data.temperature_unit,
             "detailed_forecast": weather_data.detailed_forecast,
+            "short_forecast": weather_data.short_forecast,
+            "wind_speed": weather_data.wind_speed,
+            "wind_direction": weather_data.wind_direction,
+            "wind_info": f"{weather_data.wind_speed.replace(' ', '')}/{weather_data.wind_direction}",
             "fetched_at": weather_data.fetched_at.isoformat(),
             "is_precipitation": weather_data.is_precipitation,
         }

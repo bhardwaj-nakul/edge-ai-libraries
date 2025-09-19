@@ -31,16 +31,16 @@ class UIComponents:
         if not monitoring_data:
             return """
             <div style="text-align: center; background: linear-gradient(135deg, #1e3a8a, #3b82f6); 
-                        padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                <p style="color: white; margin: 0; font-size: 24px;">🚦 Traffic MONITORING SYSTEM</p>
-                <p style="color: #fbbf24; margin: 5px 0 0 0;">⚠️ DATA UNAVAILABLE</p>
+                        padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                <p style="color: white; margin: 0; font-size: 26px; font-weight: 600;">🚦 Traffic MONITORING SYSTEM</p>
+                <p style="color: #fbbf24; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">⚠️ DATA UNAVAILABLE</p>
             </div>
             """
         
         return f"""
         <div style="text-align: center; background: linear-gradient(135deg, #1e3a8a, #3b82f6); 
-                    padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-            <p style="color: white; margin: 0; font-size: 24px;">🚦 {Config.APP_TITLE} | {monitoring_data.data.intersection_name}</p> 
+                    padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="color: white; margin: 0; font-size: 26px; font-weight: 600;">🚦 {Config.APP_TITLE} | {monitoring_data.data.intersection_name}</p> 
         </div>
         """
 
@@ -51,35 +51,43 @@ class UIComponents:
             return "<p style='text-align: center; color: #ef4444;'>No traffic data available</p>"
         
         data = monitoring_data.data
+        total_pedestrians = monitoring_data.get_total_pedestrians()
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-            <h3 style="color: #f3f4f6; margin: 0 0 15px 0; text-align: center;">🚦 TRAFFIC SUMMARY</h3>
+        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;">
+            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🚦 TRAFFIC SUMMARY</h3>
             
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 15px 0;">
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 2em; color: #60a5fa;">{data.northbound_density}</div>
-                    <div style="color: #d1d5db;">↑ NORTH</div>
+            <!-- Directional Traffic Grid -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.northbound_density}</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">↑ NORTH</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 2em; color: #60a5fa;">{data.southbound_density}</div>
-                    <div style="color: #d1d5db;">↓ SOUTH</div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.southbound_density}</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">↓ SOUTH</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 2em; color: #60a5fa;">{data.eastbound_density}</div>
-                    <div style="color: #d1d5db;">→ EAST</div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.eastbound_density}</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">→ EAST</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 2em; color: #60a5fa;">{data.westbound_density}</div>
-                    <div style="color: #d1d5db;">← WEST</div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.westbound_density}</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">← WEST</div>
                 </div>
             </div>
             
-            <div style="text-align: center; background: #065f46; padding: 15px; border-radius: 8px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                <div style="font-size: 2.5em; color: #60a5fa; font-weight: bold;">{data.total_density}</div>
-                <div style="color: #d1fae5; font-weight: 500;">TOTAL VEHICLES</div>
+            <!-- Total Summary Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 6px;">{data.total_density}</div>
+                    <div style="color: #d1d5db; font-weight: 500; font-size: 0.9em;">TOTAL VEHICLES</div>
+                </div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #fbbf24; font-weight: bold; margin-bottom: 6px;">{total_pedestrians}</div>
+                    <div style="color: #d1d5db; font-weight: 500; font-size: 0.9em;">TOTAL PEDESTRIANS</div>
+                </div>
             </div>
-            </div>  
         </div>
         """
 
@@ -92,7 +100,7 @@ class UIComponents:
         weather = monitoring_data.weather_data
         
         # Determine air quality status (simulated)
-        temp = weather.temperature_celsius
+        temp = weather.temperature_fahrenheit
         humidity = weather.humidity_percent
         
         if temp < 0 or temp > 35 or humidity > 80:
@@ -117,35 +125,39 @@ class UIComponents:
             wind_text = "W"
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-            <h3 style="color: #f3f4f6; margin: 0 0 15px 0; text-align: center;">🌡️ ENVIRONMENTAL DATA</h3>
+        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;">
+            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🌡️ ENVIRONMENTAL DATA</h3>
             
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 2em; color: #fbbf24;">{weather.temperature_celsius}°C</div>
-                    <div style="color: #d1d5db;">TEMPERATURE</div>
+            <!-- Primary Weather Metrics -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #fbbf24; font-weight: bold; margin-bottom: 5px;">{int(weather.temperature_fahrenheit)}°F</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">TEMPERATURE</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 2em; color: #60a5fa;">{weather.humidity_percent}%</div>
-                    <div style="color: #d1d5db;">HUMIDITY</div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{weather.humidity_percent}%</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">HUMIDITY</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 1.5em; color: #a78bfa;">{weather.wind_speed_kph} km/h {wind_text}</div>
-                    <div style="color: #d1d5db;">WIND</div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #a78bfa; font-weight: bold; margin-bottom: 5px;">{weather.wind_speed_mph:.1f} mph</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">WIND</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px;">
-                    <div style="font-size: 1.5em; color: #34d399;">{weather.precipitation_mm} mm</div>
-                    <div style="color: #d1d5db;">RAINFALL</div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: #34d399; font-weight: bold; margin-bottom: 5px;">{weather.precipitation_mm:.1f} mm</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">RAINFALL</div>
                 </div>
             </div>
             
-            <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; margin-top: 15px;">
-                <div style="font-size: 1.5em; color: {air_color}; font-weight: bold;">{air_quality}</div>
-                <div style="color: #d1d5db;">AIR QUALITY</div>
-            </div>
-            
-            <div style="margin-top: 15px; text-align: center;">
-                <p style="color: #9ca3af; margin: 5px 0;">Conditions: {weather.conditions}</p>
+            <!-- Additional Environmental Info -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.5em; color: {air_color}; font-weight: bold; margin-bottom: 6px;">{air_quality}</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">AIR QUALITY</div>
+                </div>
+                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="font-size: 1em; font-weight: bold; margin-bottom: 6px;">{weather.conditions}</div>
+                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">CONDITIONS</div>
+                </div>
             </div>
         </div>
         """
@@ -241,23 +253,23 @@ class UIComponents:
         analysis_html = UIComponents._render_markdown(monitoring_data.vlm_analysis.analysis)
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-            <h3 style="color: #f3f4f6; margin: 0 0 15px 0; text-align: left;">🚨 Traffic Status and Alerts</h3>
+        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: left; font-size: 1.2em;">🚨 Traffic Status and Alerts</h3>
             
             {alerts_html}
             
             {f'''
-            <div style="margin-top: 15px;">
-                <h4 style="color: #f3f4f6; margin: 10px 0 8px 0; font-size: 1em;">💡 Recommendations</h4>
+            <div style="margin-top: 20px;">
+                <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 1.1em;">💡 Recommendations</h4>
                 {recommendations_html}
             </div>
             ''' if recommendations_html else ''}
             
-            <div style="margin-top: 15px; padding: 15px; background: #374151; border-radius: 8px;">
-                <h4 style="color: #f3f4f6; margin-top: 0;">Analysis Summary:</h4>
-                <div style="color: #d1d5db; margin: 5px 0; font-size: 0.95em; line-height: 1.4;">{analysis_html}</div>
-                <p style="color: #9ca3af; margin: 5px 0; font-size: 0.9em;">
-                    Age: {monitoring_data.vlm_analysis.analysis_age_minutes} min
+            <div style="margin-top: 20px; padding: 18px; background: #374151; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 1.05em;">Analysis Summary:</h4>
+                <div style="color: #d1d5db; margin: 0 0 12px 0; font-size: 0.95em; line-height: 1.5;">{analysis_html}</div>
+                <p style="color: #9ca3af; margin: 0; font-size: 0.9em; font-style: italic;">
+                    Analysis Age: {monitoring_data.vlm_analysis.analysis_age_minutes} minutes
                 </p>
             </div>
         </div>
@@ -345,20 +357,21 @@ class UIComponents:
                     image_src = f"data:image/jpeg;base64,{image_base64}"
                     
                     cameras_html += f"""
-                    <div style="background: #374151; border-radius: 8px; padding: 12px; text-align: center; 
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                        <h4 style="color: #f3f4f6; margin: 0 0 8px 0; font-size: 0.9em;">
+                    <div style="background: #374151; border-radius: 8px; padding: 15px; text-align: center; 
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.3); width: 100%;">
+                        <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 0.95em; font-weight: 600;">
                             {direction.upper()} VIEW - {camera_id}
                         </h4>
-                        <div style="position: relative; display: inline-block; width: 100%;">
+                        <div style="position: relative; display: block; width: 100%;">
                             <img src="{image_src}" 
-                                 style="width: 100%; max-width: 350px; height: 200px; object-fit: cover; 
+                                 style="width: 100%; height: 200px; object-fit: cover; 
                                         border-radius: 6px; border: 2px solid #6b7280; 
-                                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);" 
+                                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); display: block;" 
                                  alt="{direction} view">
-                            <div style="position: absolute; top: 6px; right: 6px; 
+                            <div style="position: absolute; top: 8px; right: 8px; 
                                         background: rgba(220,38,38,0.9); color: white; 
-                                        padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">
+                                        padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; 
+                                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
                                 ● LIVE
                             </div>
                         </div>
@@ -366,24 +379,24 @@ class UIComponents:
                     """
                 else:
                     cameras_html += f"""
-                    <div style="background: #374151; border-radius: 8px; padding: 12px; text-align: center;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                        <h4 style="color: #f3f4f6; margin: 0 0 8px 0; font-size: 0.9em;">
+                    <div style="background: #374151; border-radius: 8px; padding: 15px; text-align: center;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.3); width: 100%;">
+                        <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 0.95em; font-weight: 600;">
                             {direction.upper()} VIEW - {camera_id}
                         </h4>
-                        <div style="background: #4b5563; border-radius: 6px; padding: 30px; color: #9ca3af; 
+                        <div style="background: #4b5563; border-radius: 6px; padding: 40px; color: #9ca3af; 
                                     height: 200px; display: flex; flex-direction: column; justify-content: center; 
-                                    align-items: center; border: 2px solid #6b7280;">
-                            <div style="font-size: 36px; margin-bottom: 8px;">📷</div>
-                            <div style="font-size: 12px;">No image available</div>
+                                    align-items: center; border: 2px solid #6b7280; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+                            <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.7;">📷</div>
+                            <div style="font-size: 13px; font-weight: 500;">No image available</div>
                         </div>
                     </div>
                     """
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 15px; margin: 10px 0;">
-            <h3 style="color: #f3f4f6; margin: 0 0 15px 0; text-align: center;">📹 Camera Feeds</h3>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">📹 Camera Feeds</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
                 {cameras_html}
             </div>
         </div>
@@ -407,19 +420,18 @@ class UIComponents:
         <div style="
             background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
             border-radius: 10px;
-            padding: 15px;
+            padding: 18px;
             margin: 10px 0;
             border: 1px solid #4b5563;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         ">
             <div style="
-                display: flex;
-                justify-content: space-between;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
                 align-items: center;
-                flex-wrap: wrap;
-                gap: 15px;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                font-size: 12px;
+                font-size: 13px;
             ">
                 <div>
                     <strong style="color: #60a5fa;">System Status:</strong>

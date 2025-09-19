@@ -225,13 +225,17 @@ class WeatherService:
     def _get_mock_weather_data(self) -> WeatherData:
         """Provide mock weather data when API is unavailable."""
         return WeatherData(
-            name="Mock Weather",
-            temperature=72,
+            name="Overnight",
+            temperature=61,
             temperature_unit="F",
-            detailed_forecast="Clear skies",
+            detailed_forecast="A slight chance of rain before 5am. Mostly cloudy, with a low around 61. West wind around 3 mph. Chance of precipitation is 20%.",
             fetched_at=datetime.now(timezone.utc),
             is_precipitation=False,
-            is_mock=True
+            is_mock=True,
+            wind_speed="3 mph",
+            wind_direction="W",
+            short_forecast="Slight Chance Light Rain",
+            wind_info="3mph/W"
         )
     
     def _process_weather_data(self, forecast_period: Dict[str, Any]) -> WeatherData:
@@ -257,16 +261,27 @@ class WeatherService:
         # Determine precipitation status and road conditions
         is_precipitation = prob_value > 30  # Consider > 30% as likely precipitation
         
-        # Determine road conditions based on weather
-        short_forecast = forecast_period.get("shortForecast", "Clear").lower()
-        
         # Get period name
         period_name = forecast_period.get("name", "Current")
         
         # Get detailed forecast
         detailed_forecast = forecast_period.get("detailedForecast", 
                                                forecast_period.get("shortForecast", "Clear conditions"))
+
+        # Get short forecast
+        short_forecast = forecast_period.get("shortForecast", "Clear")
         
+        # Get wind speed and direction
+        wind_speed = forecast_period.get("windSpeed", "0 mph")
+        wind_direction = forecast_period.get("windDirection", "N")
+        
+        # Create wind_info field by combining speed and direction (e.g., "3mph/W")
+        # Extract numeric speed from wind_speed string
+        import re
+        speed_match = re.search(r'(\d+)', wind_speed)
+        speed_number = speed_match.group(1) if speed_match else "0"
+        wind_info = f"{speed_number}mph/{wind_direction}"
+
         return WeatherData(
             name=period_name,
             temperature=temp_f,
@@ -274,7 +289,11 @@ class WeatherService:
             detailed_forecast=detailed_forecast,
             fetched_at=datetime.utcnow(),
             is_precipitation=is_precipitation,
-            is_mock=False
+            is_mock=False,
+            wind_speed=wind_speed,
+            wind_direction=wind_direction,
+            short_forecast=short_forecast,
+            wind_info=wind_info
         )
    
     def _is_cache_valid(self) -> bool:

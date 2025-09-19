@@ -38,10 +38,10 @@ class VLMAnalysis:
 class WeatherData:
     """Weather information"""
     timestamp: str
-    temperature_celsius: float
+    temperature_fahrenheit: float
     humidity_percent: int
     precipitation_mm: float
-    wind_speed_kph: float
+    wind_speed_mph: float
     wind_direction_degrees: int
     conditions: str
 
@@ -69,6 +69,7 @@ class IntersectionData:
     westbound_density: int
     total_density: int
     region_counts: Dict[str, RegionCount]
+    total_pedestrian_count: Optional[int] = None  # Direct from API
 
 
 @dataclass
@@ -86,7 +87,9 @@ class MonitoringData:
         return sum(region.vehicle for region in self.data.region_counts.values())
     
     def get_total_pedestrians(self) -> int:
-        """Get total pedestrian count across all regions"""
+        """Get total pedestrian count - prefer API count if available, otherwise sum regions"""
+        if self.data.total_pedestrian_count is not None:
+            return self.data.total_pedestrian_count
         return sum(region.pedestrian for region in self.data.region_counts.values())
     
     def get_traffic_status(self) -> str:

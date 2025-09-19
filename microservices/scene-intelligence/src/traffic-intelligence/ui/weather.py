@@ -27,9 +27,9 @@ def get_weather(lat, lon):
     temp_f = first_period["temperature"]
     temp_c = round((temp_f - 32) * 5/9, 1)
     
-    # Parse wind speed and convert to kph
+    # Parse wind speed and convert to mph
     wind_speed_str = first_period.get("windSpeed", "0 mph")
-    wind_speed_kph = _parse_wind_speed(wind_speed_str)
+    wind_speed_mph = _parse_wind_speed(wind_speed_str)
     
     # Parse wind direction to degrees
     wind_direction = first_period.get("windDirection", "")
@@ -52,16 +52,16 @@ def get_weather(lat, lon):
     
     return {
         "timestamp": timestamp,
-        "temperature_celsius": temp_c,
+        "temperature_fahrenheit": temp_c,
         "humidity_percent": 60,  # NWS API doesn't provide humidity, using default
         "precipitation_mm": precipitation_mm,
-        "wind_speed_kph": wind_speed_kph,
+        "wind_speed_mph": wind_speed_mph,
         "wind_direction_degrees": wind_direction_degrees,
         "conditions": conditions
     }
 
 def _parse_wind_speed(wind_speed_str: str) -> float:
-    """Parse wind speed string and convert to kph."""
+    """Parse wind speed string and convert to mph."""
     numbers = re.findall(r'\d+', wind_speed_str)
     if not numbers:
         return 0.0
@@ -72,8 +72,8 @@ def _parse_wind_speed(wind_speed_str: str) -> float:
     else:
         avg_mph = int(numbers[0])
     
-    # Convert mph to kph
-    return round(avg_mph * 1.60934, 1)
+    # Convert mph to mph
+    return round(avg_mph * 1, 1)
 
 def _parse_wind_direction(direction_str: str) -> int:
     """Parse wind direction string to degrees."""
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     lat, lon = 33.7501, -84.3885  # Example coordinates
     weather = get_weather(lat, lon)
     print(weather)
-    print(f"Temperature: {weather['temperature_celsius']}°C")
+    print(f"Temperature: {weather['temperature_fahrenheit']}°F")
     print(f"Conditions: {weather['conditions']}")
-    print(f"Wind: {weather['wind_speed_kph']} kph from {weather['wind_direction_degrees']}°")
+    print(f"Wind: {weather['wind_speed_mph']} mph from {weather['wind_direction_degrees']}°")
     print(f"Precipitation: {weather['precipitation_mm']} mm")
