@@ -1,6 +1,6 @@
 # Scene Intelligence Microservice
 
-This repository provides a Scene Intelligence microservice for comprehensive traffic analysis and monitoring. The microservice processes real-time MQTT traffic data, provides directional traffic density analysis, and integrates with Vision Language Models (VLM) for intelligent traffic scene analysis. It delivers advanced traffic insights through RESTful APIs with camera image management and sliding window analysis capabilities.
+This repository provides a Scene Intelligence microservice for comprehensive traffic analysis and monitoring. The microservice processes real-time MQTT traffic data, provides traffic density and weather analysis, and integrates with Vision Language Models (VLM) for intelligent traffic scene analysis. It delivers advanced traffic insights through RESTful APIs with camera image management and sliding window analysis capabilities.
 
 Below, you'll find links to detailed documentation to help you get started, configure, and deploy the microservice.
 

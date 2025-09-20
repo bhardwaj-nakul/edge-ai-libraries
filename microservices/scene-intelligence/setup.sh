@@ -18,17 +18,16 @@ SECRETS_DIR="${SOURCE}/secrets"
 if [ "$#" -eq 0 ] || ([ "$#" -eq 1 ] && [ "$1" = "--help" ]); then
     # If no valid argument is passed, print usage information
     echo -e "-----------------------------------------------------------------"
-    echo -e "${YELLOW}USAGE: ${GREEN}source setup.sh ${BLUE}[--setenv | --secrets | --videos | --build | --run | --stop | --clean | --status | --help | --setup]"
+    echo -e "${YELLOW}USAGE: ${GREEN}source setup.sh ${BLUE}[--setenv | --secrets | --videos | --build | --run | --stop | --clean |  --help | --setup]"
     echo -e "${YELLOW}"
     echo -e "  --setenv:     Set environment variables without starting any containers"
     echo -e "  --secrets:    Generate secrets only"
     echo -e "  --videos:     Download demo videos only"
     echo -e "  --build:      Download videos and build Docker images"
-    echo -e "  --run:        Start the service and AI Route Planner"
-    echo -e "  --stop:       Stop the service and AI Route Planner"
-    echo -e "  --clean:      Clean up containers, volumes, and AI Route Planner logs"
-    echo -e "  --status:     Show service status including AI Route Planner"
-    echo -e "  --setup:      Full setup: secrets + videos + build + run (includes AI Route Planner)"
+    echo -e "  --run:        Start the services
+    echo -e "  --stop:       Stop the services
+    echo -e "  --clean:      Clean up containers, volumes, and logs"
+    echo -e "  --setup:      Full setup: secrets + videos + build + run Dependencies"
     echo -e "  --help:       Show this help message${NC}"
     echo -e "-----------------------------------------------------------------"
     return 0
@@ -38,18 +37,15 @@ elif [ "$#" -gt 1 ]; then
     echo -e "${YELLOW}Use --help for usage information${NC}"
     return 1
 
-elif [ "$1" != "--help" ] && [ "$1" != "--setenv" ] && [ "$1" != "--secrets" ] && [ "$1" != "--videos" ] && [ "$1" != "--build" ] && [ "$1" != "--run" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] && [ "$1" != "--status" ] && [ "$1" != "--setup" ]; then
+elif [ "$1" != "--help" ] && [ "$1" != "--setenv" ] && [ "$1" != "--secrets" ] && [ "$1" != "--videos" ] && [ "$1" != "--build" ] && [ "$1" != "--run" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] && [ "$1" != "--setup" ]; then
     # Default case for unrecognized option
     echo -e "${RED}Unknown option: $1 ${NC}"
     echo -e "${YELLOW}Use --help for usage information${NC}"
     return 1
 
 elif [ "$1" = "--stop" ]; then
-    # If --stop is passed, bring down the Docker containers and stop AI Route Planner
+    # If --stop is passed, bring down the Docker containers and stop 
     echo -e "${YELLOW}Stopping Scene Intelligence service... ${NC}"
-    
-    # Stop AI Route Planner first
-    stop_ai_route_planner
     
     # Stop Docker services
     docker compose -f docker/compose.yaml down
@@ -62,9 +58,6 @@ elif [ "$1" = "--stop" ]; then
 elif [ "$1" = "--clean" ]; then
     # If --clean is passed, clean up containers and volumes
     echo -e "${YELLOW}Cleaning up containers and volumes... ${NC}"
-    
-    # Stop AI Route Planner first
-    stop_ai_route_planner
     
     # Clean up log files
     rm -f ai-route-planner.log
@@ -279,9 +272,6 @@ start_service() {
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Scene Intelligence Dependent Services started successfully!${NC}"
         
-        # Start AI Route Planner
-        #start_ai_route_planner
-        
         echo ""
         echo -e "${BLUE}Services:${NC}"
         echo -e "  • SceneScape Web: ${YELLOW}https://localhost:${SCENESCAPE_PORT}${NC}"
@@ -299,7 +289,7 @@ start_service() {
 }
 
 # Verify if required directories exist
-if [ "$1" != "--setenv" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] && [ "$1" != "--status" ]; then
+if [ "$1" != "--setenv" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] ; then
     if [ ! -d "${SOURCE}" ]; then
         echo -e "${RED}Error: Source directory '${SOURCE}' not found${NC}"
         return 1

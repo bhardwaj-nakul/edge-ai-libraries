@@ -11,10 +11,8 @@ class Config:
     # Refresh settings
     REFRESH_INTERVAL_SECONDS: int = int(os.getenv("REFRESH_INTERVAL", "15"))
     
-    # Data source settings
-    DATA_FILE_PATH: str = os.getenv("DATA_FILE_PATH", "data.json")
+    # API settings
     API_URL: str = os.getenv("API_URL", "http://localhost:8081/api/v1/traffic/current")
-    USE_API: bool = os.getenv("USE_API", "true").lower() == "true"
     
     # UI settings
     APP_TITLE: str = os.getenv("APP_TITLE", "TRAFFIC MONITORING SYSTEM")

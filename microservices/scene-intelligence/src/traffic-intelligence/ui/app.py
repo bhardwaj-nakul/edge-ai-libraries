@@ -8,7 +8,6 @@ import gradio as gr
 import logging
 import sys
 import time
-from pathlib import Path
 
 # Import our modules
 from config import Config
@@ -23,12 +22,8 @@ logger = logging.getLogger(__name__)
 def update_dashboard():
     """Update all dashboard components with fresh data"""
     try:
-        # Load fresh data using configuration
-        data = load_monitoring_data(
-            file_path=Config.DATA_FILE_PATH,
-            use_api=Config.USE_API,
-            api_url=Config.API_URL
-        )
+        # Load fresh data using API only
+        data = load_monitoring_data(api_url=Config.API_URL)
         
         if not data:
             error_msg = "<div style='color: red; text-align: center; padding: 20px;'>❌ No data available</div>"
@@ -232,18 +227,10 @@ def create_dashboard_interface():
 def main():
     """Main application entry point"""
     logger.info("Starting RSU Monitoring Dashboard...")
-    logger.info(f"Data file: {Config.DATA_FILE_PATH}")
     logger.info(f"API URL: {Config.API_URL}")
-    logger.info(f"Use API: {Config.USE_API}")
     logger.info(f"Refresh interval: {Config.REFRESH_INTERVAL_SECONDS} seconds")
     logger.info(f"Server: {Config.APP_HOST}:{Config.APP_PORT}")
-    
-    # Verify data file exists or API is accessible
-    if Config.USE_API:
-        logger.info("Configured to use API endpoint for data")
-    else:
-        if not Path(Config.DATA_FILE_PATH).exists():
-            logger.warning(f"Data file {Config.DATA_FILE_PATH} not found. Application will show 'No data available'")
+    logger.info("Configured to use API endpoint for data")
     
     try:
         # Create and launch the interface

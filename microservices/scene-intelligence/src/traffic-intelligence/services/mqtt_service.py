@@ -561,12 +561,10 @@ class MQTTService:
                     for i, vehicle in enumerate(objects['vehicle']):
                         conf = vehicle.get('confidence', 0)
                         bbox = vehicle.get('bounding_box_px', {})
-                        print(f"  Vehicle {i+1}: confidence={conf:.3f}, bbox=({bbox.get('x',0)},{bbox.get('y',0)},{bbox.get('width',0)},{bbox.get('height',0)})")
                 if 'pedestrian' in objects:
                     for i, pedestrian in enumerate(objects['pedestrian']):
                         conf = pedestrian.get('confidence', 0)
                         bbox = pedestrian.get('bounding_box_px', {})
-                        print(f"  Pedestrian {i+1}: confidence={conf:.3f}, bbox=({bbox.get('x',0)},{bbox.get('y',0)},{bbox.get('width',0)},{bbox.get('height',0)})")
                        
             # Send to data aggregator for processing
             await self.data_aggregator.process_camera_data(camera_message)

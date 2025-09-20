@@ -44,42 +44,19 @@ This single command will:
 - Build Docker images
 - Start all services in the Scene Intelligence stack
 
-### 3. Alternative Setup Options
-
-For more granular control, the setup script provides individual commands:
+Once the setup is done, you need to run the traffic intelligence service for API access.
 
 ```bash
-# Set environment variables only
-source setup.sh --setenv
 
-# Generate secrets only
-source setup.sh --secrets
-
-# Download demo videos only
-source setup.sh --videos
-
-# Download videos and build images
-source setup.sh --build
-
-# Start services only (after setup)
-source setup.sh --run
-
-# Stop services
-source setup.sh --stop
-
-# Check service status
-source setup.sh --status
-
-# Clean up everything
-source setup.sh --clean
+cd scene-intelligence/src/traffic-intelligence
+./dev.sh run
 ```
 
-### 4. Verify the Stack
-
-After running the setup, check that all services are running:
+Next, open another terminal and run the following command to run the UI.
 
 ```bash
-source setup.sh --status
+./dev.sh ui
+
 ```
 
 Check Scene Intelligence health:

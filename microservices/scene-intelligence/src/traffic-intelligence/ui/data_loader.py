@@ -1,11 +1,9 @@
 """
 Data loader module for the RSU Monitoring System
 """
-import json
 import logging
 import requests
 from typing import Optional
-from pathlib import Path
 
 from models import (
     MonitoringData, IntersectionData, RegionCount, 
@@ -251,111 +249,23 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
 def convert_fahrenheit_to_celsius(fahrenheit: float) -> float:
     """Convert Fahrenheit to Celsius"""
     return (fahrenheit - 32) * 5.0 / 9.0
-def load_monitoring_data(file_path: str = "data.json", use_api: bool = True, api_url: str = None) -> Optional[MonitoringData]:
+def load_monitoring_data(api_url: str = None) -> Optional[MonitoringData]:
     """
-    Load monitoring data from API or JSON file
+    Load monitoring data from API endpoint only
     
     Args:
-        file_path: Path to the JSON data file (fallback)
-        use_api: Whether to use API endpoint (default: True)
         api_url: API endpoint URL (if None, uses default)
         
     Returns:
         MonitoringData object or None if loading fails
     """
-    if use_api:
-        # Try to load from API first
-        api_data = load_monitoring_data_from_api(api_url) if api_url else load_monitoring_data_from_api()
-        if api_data:
-            return api_data
-        logger.warning("Failed to load from API, falling back to JSON file")
+    # Load from API endpoint only
+    api_data = load_monitoring_data_from_api(api_url) if api_url else load_monitoring_data_from_api()
+    if api_data:
+        return api_data
     
-    # Fallback to original JSON file loading
-    try:
-        if not Path(file_path).exists():
-            logger.error(f"Data file {file_path} not found")
-            return None
-            
-        with open(file_path, 'r') as f:
-            raw_data = json.load(f)
-        
-        # Parse region counts
-        region_counts = {}
-        for region_id, counts in raw_data["data"]["region_counts"].items():
-            region_counts[region_id] = RegionCount(
-                vehicle=counts["vehicle"],
-                pedestrian=counts["pedestrian"]
-            )
-        
-        # Parse intersection data
-        intersection_data = IntersectionData(
-            intersection_id=raw_data["data"]["intersection_id"],
-            intersection_name=raw_data["data"]["intersection_name"],
-            latitude=raw_data["data"]["latitude"],
-            longitude=raw_data["data"]["longitude"],
-            timestamp=raw_data["data"]["timestamp"],
-            northbound_density=raw_data["data"]["northbound_density"],
-            southbound_density=raw_data["data"]["southbound_density"],
-            eastbound_density=raw_data["data"]["eastbound_density"],
-            westbound_density=raw_data["data"]["westbound_density"],
-            total_density=raw_data["data"]["total_density"],
-            region_counts=region_counts
-        )
-        
-        # Parse camera data
-        camera_images = {}
-        for camera_name, camera_info in raw_data["camera_images"].items():
-            camera_images[camera_name] = CameraData(
-                camera_id=camera_info["camera_id"],
-                direction=camera_info["direction"],
-                timestamp=camera_info["timestamp"],
-                image_base64=camera_info.get("image_base64")
-            )
-        
-        # Parse traffic context
-        traffic_context = TrafficContext(
-            analysis_period=raw_data["vlm_analysis"]["traffic_context"]["analysis_period"],
-            avg_densities=raw_data["vlm_analysis"]["traffic_context"]["avg_densities"],
-            peak_densities=raw_data["vlm_analysis"]["traffic_context"]["peak_densities"]
-        )
-        
-        # Parse VLM analysis
-        vlm_analysis = VLMAnalysis(
-            analysis=raw_data["vlm_analysis"]["analysis"],
-            high_density_directions=raw_data["vlm_analysis"]["high_density_directions"],
-            analysis_timestamp=raw_data["vlm_analysis"]["analysis_timestamp"],
-            current_high_directions=raw_data["vlm_analysis"]["current_high_directions"],
-            analysis_age_minutes=raw_data["vlm_analysis"]["analysis_age_minutes"],
-            traffic_context=traffic_context,
-            alerts=raw_data["vlm_analysis"]["alerts"]
-        )
-        
-        # Parse weather data
-        weather_data = WeatherData(
-            timestamp=raw_data["weather_data"]["timestamp"],
-            temperature_fahrenheit=raw_data["weather_data"]["temperature_fahrenheit"],
-            humidity_percent=raw_data["weather_data"]["humidity_percent"],
-            precipitation_mm=raw_data["weather_data"]["precipitation_mm"],
-            wind_speed_mph=raw_data["weather_data"]["wind_speed_mph"],
-            wind_direction_degrees=raw_data["weather_data"]["wind_direction_degrees"],
-            conditions=raw_data["weather_data"]["conditions"]
-        )
-        
-        # Create complete monitoring data object
-        monitoring_data = MonitoringData(
-            timestamp=raw_data["timestamp"],
-            intersection_id=raw_data["intersection_id"],
-            data=intersection_data,
-            camera_images=camera_images,
-            vlm_analysis=vlm_analysis,
-            weather_data=weather_data
-        )
-        
-        return monitoring_data
-        
-    except Exception as e:
-        logger.error(f"Error loading monitoring data from file: {str(e)}")
-        return None
+    logger.error("Failed to load data from API endpoint. Please check API connectivity and try again.")
+    return None
 
 
 def get_last_update_time(monitoring_data: MonitoringData) -> str:

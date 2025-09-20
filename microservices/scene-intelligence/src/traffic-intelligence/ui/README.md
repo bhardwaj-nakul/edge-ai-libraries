@@ -45,8 +45,8 @@ Configure the system using environment variables or by editing `config.py`:
 # Data refresh interval (seconds)
 export REFRESH_INTERVAL=5
 
-# Data file path
-export DATA_FILE_PATH="data.json"
+# API endpoint configuration
+export API_URL="http://localhost:8081/api/v1/traffic/current"
 
 # Server configuration
 export APP_HOST="0.0.0.0"
@@ -78,9 +78,9 @@ agent_ui/
 └── README.md           # This file
 ```
 
-## Data Format
+## Data Source
 
-The system expects `data.json` to follow this structure:
+The system fetches data from the Traffic Intelligence API endpoint. The API returns data in this structure:
 
 ```json
 {
@@ -169,7 +169,7 @@ To extend the system:
 ### Common Issues
 
 1. **Port already in use**: Change `APP_PORT` in configuration
-2. **Data file not found**: Ensure `data.json` exists or update `DATA_FILE_PATH`
+2. **API connection failed**: Ensure the Traffic Intelligence API is running at the configured endpoint
 3. **Import errors**: Make sure virtual environment is activated and dependencies are installed
 
 ### Logs
