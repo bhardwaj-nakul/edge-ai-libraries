@@ -405,15 +405,24 @@ class UIComponents:
     @staticmethod
     def create_system_info(monitoring_data: Optional[MonitoringData] = None) -> str:
         """Create system information footer with current status"""
-        import datetime
-        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        # Use UTC and consistent formatting for both current time and last update
+        from datetime import datetime, timezone
+        from data_loader import get_last_update_time
+
+        # Current time in UTC with date and time (consistent format)
+        current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         
         # Get system status information
         last_update = "N/A"
         system_status = "OFFLINE"
         
         if monitoring_data:
-            last_update = monitoring_data.timestamp or current_time
+            # Prefer a nicely formatted last update using the data loader helper
+            try:
+                last_update = get_last_update_time(monitoring_data) or current_time
+            except Exception:
+                # Fallback to raw timestamp or current time
+                last_update = monitoring_data.timestamp or current_time
             system_status = "ONLINE"
         
         return f"""

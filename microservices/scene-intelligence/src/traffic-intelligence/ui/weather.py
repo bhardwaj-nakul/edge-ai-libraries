@@ -132,7 +132,7 @@ def _parse_timestamp(timestamp_str: str) -> str:
 
 # Example usage:
 if __name__ == "__main__":
-    lat, lon = 33.7501, -84.3885  # Example coordinates
+    lat, lon = 33.3091336,-111.9353095  # Example coordinates
     weather = get_weather(lat, lon)
     print(weather)
     print(f"Temperature: {weather['temperature_fahrenheit']}°F")

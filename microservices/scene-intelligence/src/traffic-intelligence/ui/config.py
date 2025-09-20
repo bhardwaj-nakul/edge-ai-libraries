@@ -13,16 +13,16 @@ class Config:
     
     # Data source settings
     DATA_FILE_PATH: str = os.getenv("DATA_FILE_PATH", "data.json")
-    API_URL: str = os.getenv("API_URL", "http://10.223.23.199:8081/api/v1/traffic/current")
+    API_URL: str = os.getenv("API_URL", "http://localhost:8081/api/v1/traffic/current")
     USE_API: bool = os.getenv("USE_API", "true").lower() == "true"
     
     # UI settings
     APP_TITLE: str = os.getenv("APP_TITLE", "TRAFFIC MONITORING SYSTEM")
     APP_PORT: int = int(os.getenv("APP_PORT", "7860"))
-    APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")
+    APP_HOST: str = "0.0.0.0"
     
     # Theme settings
-    UI_THEME: str = os.getenv("UI_THEME", "dark")
+    UI_THEME: str = os.getenv("UI_THEME", "light")
     
     # Alert thresholds
     HIGH_DENSITY_THRESHOLD: int = int(os.getenv("HIGH_DENSITY_THRESHOLD", "5"))

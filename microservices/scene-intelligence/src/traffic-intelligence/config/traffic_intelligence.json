@@ -2,8 +2,8 @@
   "intersection": {
     "id": "97781c36-b53a-4749-87e6-8815da99bac7",
     "name": "Intersection-Demo",
-    "latitude": 37.55336,
-    "longitude": -122.29627
+    "latitude": 33.3091336,
+    "longitude": -111.9353095
   },
   "mqtt": {
     "host": "localhost",

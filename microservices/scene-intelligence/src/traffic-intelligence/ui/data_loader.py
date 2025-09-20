@@ -15,7 +15,7 @@ from models import (
 logger = logging.getLogger(__name__)
 
 
-def load_monitoring_data_from_api(api_url: str = "http://10.223.23.199:8081/api/v1/traffic/current") -> Optional[MonitoringData]:
+def load_monitoring_data_from_api(api_url: str = "http://localhost:8081/api/v1/traffic/current") -> Optional[MonitoringData]:
     """
     Load monitoring data from the traffic intelligence API
     

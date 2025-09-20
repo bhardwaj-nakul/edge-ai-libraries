@@ -76,20 +76,6 @@ elif [ "$1" = "--clean" ]; then
     echo -e "${GREEN}Cleanup completed successfully. ${NC}"
     return 0
 
-elif [ "$1" = "--status" ]; then
-    # Show service status
-    echo -e "${BLUE}Scene Intelligence Service Status:${NC}"
-    docker compose -f docker/compose.yaml ps
-    
-    echo ""
-    echo -e "${BLUE}AI Route Planner Status:${NC}"
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ AI Route Planner is running on port ${AI_ROUTE_PLANNER_PORT}${NC}"
-        echo -e "  URL: ${YELLOW}http://localhost:${AI_ROUTE_PLANNER_PORT}${NC}"
-    else
-        echo -e "${RED}✗ AI Route Planner is not running${NC}"
-    fi
-    return 0
 fi
 
 # Export all environment variables
@@ -114,7 +100,6 @@ echo -e "${GREEN}Using registry: ${YELLOW}$REGISTRY ${NC}"
 # Scene Intelligence Service Configuration
 export MQTT_PORT=${MQTT_PORT:-1883}
 export SCENESCAPE_PORT=${SCENESCAPE_PORT:-443}
-export SCENE_INTELLIGENCE_PORT=${SCENE_INTELLIGENCE_PORT:-8082}
 export DLSTREAMER_PORT=${DLSTREAMER_PORT:-8555}
 
 # User and group IDs
@@ -163,17 +148,13 @@ export VLM_TEMPERATURE=${VLM_TEMPERATURE:-0.3}
 export VLM_TOP_P=${VLM_TOP_P:-0.9}
 export VLM_CONFIG_FILE=${VLM_CONFIG_FILE:-config/vlm_config.json}
 
-# AI Route Planner Configuration
-export AI_ROUTE_PLANNER_PORT=${AI_ROUTE_PLANNER_PORT:-7864}
-export AI_ROUTE_PLANNER_DIR=${AI_ROUTE_PLANNER_DIR:-ai-route-planner}
-
 # VLM Prompts (optional environment variable overrides)
 # export VLM_SYSTEM_PROMPT="Custom system prompt..."
 # export VLM_TRAFFIC_ANALYSIS_PROMPT="Custom traffic analysis prompt with {intersection_id}, {directions_text}, {density_info}, {high_density_threshold} placeholders..."
 
 # VLM OpenVINO Configuration (for VLM microservice)
 export VLM_DEVICE=${VLM_DEVICE:-CPU}
-export VLM_COMPRESSION_WEIGHT_FORMAT=${VLM_COMPRESSION_WEIGHT_FORMAT:-int8}
+export VLM_COMPRESSION_WEIGHT_FORMAT=${VLM_COMPRESSION_WEIGHT_FORMAT:-int4}
 export VLM_SEED=${VLM_SEED:-42}
 export VLM_WORKERS=${VLM_WORKERS:-4}  # Set to 4 for concurrent intersection analysis
 export VLM_LOG_LEVEL=${VLM_LOG_LEVEL:-info}
@@ -195,9 +176,7 @@ echo -e "  TAG: ${YELLOW}$TAG${NC}"
 echo -e "  REGISTRY: ${YELLOW}$REGISTRY${NC}"
 echo -e "  MQTT_PORT: ${YELLOW}$MQTT_PORT${NC}"
 echo -e "  SCENESCAPE_PORT: ${YELLOW}$SCENESCAPE_PORT${NC}"
-echo -e "  SCENE_INTELLIGENCE_PORT: ${YELLOW}$SCENE_INTELLIGENCE_PORT${NC}"
 echo -e "  VLM_SERVICE_PORT: ${YELLOW}$VLM_SERVICE_PORT${NC}"
-echo -e "  AI_ROUTE_PLANNER_PORT: ${YELLOW}$AI_ROUTE_PLANNER_PORT${NC}"
 echo -e "  VLM_MODEL_NAME: ${YELLOW}$VLM_MODEL_NAME${NC}"
 echo -e "  VLM_WORKERS: ${YELLOW}$VLM_WORKERS${NC}"
 echo -e "  VLM_DEVICE: ${YELLOW}$VLM_DEVICE${NC}"
@@ -280,73 +259,10 @@ build_images() {
     fi
 }
 
-# Function to stop AI Route Planner
-stop_ai_route_planner() {
-    echo -e "${YELLOW}Stopping AI Route Planner...${NC}"
-    
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${YELLOW}Found AI Route Planner running on port ${AI_ROUTE_PLANNER_PORT}, stopping...${NC}"
-        fuser -k ${AI_ROUTE_PLANNER_PORT}/tcp 2>/dev/null
-        sleep 1
-        
-        # Verify it's stopped
-        if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-            echo -e "${RED}Failed to stop AI Route Planner${NC}"
-        else
-            echo -e "${GREEN}AI Route Planner stopped successfully${NC}"
-        fi
-    else
-        echo -e "${YELLOW}AI Route Planner is not running${NC}"
-    fi
-}
-
-# Function to start AI Route Planner
-start_ai_route_planner() {
-    echo -e "${BLUE}==> Starting AI Route Planner...${NC}"
-    
-    # Check if the AI Route Planner directory exists
-    if [ ! -d "${AI_ROUTE_PLANNER_DIR}" ]; then
-        echo -e "${YELLOW}AI Route Planner directory '${AI_ROUTE_PLANNER_DIR}' not found, skipping...${NC}"
-        return 0
-    fi
-    
-    # Check if uv is installed
-    if ! command -v uv &> /dev/null; then
-        echo -e "${YELLOW}uv is not installed. AI Route Planner requires uv to run.${NC}"
-        echo -e "${YELLOW}Please install uv first: https://docs.astral.sh/uv/getting-started/installation/${NC}"
-        return 0
-    fi
-    
-    # Check if port is already in use
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${YELLOW}Port ${AI_ROUTE_PLANNER_PORT} is already in use. Stopping existing process...${NC}"
-        fuser -k ${AI_ROUTE_PLANNER_PORT}/tcp 2>/dev/null
-        sleep 2
-    fi
-    
-    # Change to AI Route Planner directory and start the application in background
-    (
-        cd "${AI_ROUTE_PLANNER_DIR}"
-        echo -e "${YELLOW}Starting AI Route Planner with uv run main.py...${NC}"
-        nohup uv run main.py >| ../ai-route-planner.log 2>&1 &
-        echo -e "${GREEN}AI Route Planner started in background${NC}"
-        echo -e "${YELLOW}Logs available at: ai-route-planner.log${NC}"
-    )
-    
-    # Give it a moment to start
-    sleep 3
-    
-    # Check if it's running by checking the port
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ AI Route Planner is running on port ${AI_ROUTE_PLANNER_PORT}${NC}"
-    else
-        echo -e "${YELLOW}AI Route Planner may have failed to start. Check ai-route-planner.log for details.${NC}"
-    fi
-}
 
 # Function to start the service
 start_service() {
-    echo -e "${BLUE}==> Starting Scene Intelligence service...${NC}"
+    echo -e "${BLUE}==> Starting Scene Intelligence Dependent Services...${NC}"
     
     # Check prerequisites
     if [ ! -f "${SECRETS_DIR}/browser.auth" ]; then
@@ -361,31 +277,23 @@ start_service() {
     docker compose -f docker/compose.yaml up -d
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Scene Intelligence service started successfully!${NC}"
+        echo -e "${GREEN}Scene Intelligence Dependent Services started successfully!${NC}"
         
         # Start AI Route Planner
-        start_ai_route_planner
+        #start_ai_route_planner
         
         echo ""
         echo -e "${BLUE}Services:${NC}"
-        echo -e "  • Scene Intelligence API: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}${NC}"
-        echo -e "  • AI Route Planner: ${YELLOW}http://localhost:${AI_ROUTE_PLANNER_PORT}${NC}"
         echo -e "  • SceneScape Web: ${YELLOW}https://localhost:${SCENESCAPE_PORT}${NC}"
         echo -e "  • MQTT Broker: ${YELLOW}localhost:${MQTT_PORT}${NC}"
         echo -e "  • DL Streamer: ${YELLOW}http://localhost:${DLSTREAMER_PORT}${NC}"
         echo ""
-        echo -e "${BLUE}API Endpoints:${NC}"
-        echo -e "  • Health Check: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/health${NC}"
-        echo -e "  • Traffic Summary: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/api/v1/traffic/summary${NC}"
-        echo -e "  • Traffic Intersections: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/api/v1/traffic/intersections${NC}"
-        echo ""
         echo -e "${BLUE}To view logs:${NC}"
         echo -e "  ${YELLOW}docker compose -f docker/compose.yaml logs -f${NC}"
-        echo ""
         echo -e "${BLUE}To stop the service:${NC}"
         echo -e "  ${YELLOW}source setup.sh --stop${NC}"
     else
-        echo -e "${RED}Failed to start Scene Intelligence service${NC}"
+        echo -e "${RED}Failed to start Scene Intelligence Dependent Services${NC}"
         return 1
     fi
 }
