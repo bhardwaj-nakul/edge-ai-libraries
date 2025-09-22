@@ -31,18 +31,18 @@
   "weather": {
     "api_base_url": "https://api.weather.gov",
     "user_agent": "traffic-intelligence (admin@example.com)",
-    "cache_duration_minutes": 15
+    "cache_duration_minutes": 11
   },
   "vlm": {
     "base_url": "http://localhost:9764",
     "model": "Qwen/Qwen2.5-VL-3B-Instruct",
     "timeout_seconds": 300,
-    "max_completion_tokens": 6500,
+    "max_completion_tokens": 1500,
     "temperature": 0.1,
     "top_p": 0.1
   },
   "traffic": {
-    "high_density_threshold": 13,
+    "high_density_threshold": 10,
     "analysis_window_seconds": 30,
     "vlm_trigger_duration_seconds": 15,
     "data_retention_minutes": 60

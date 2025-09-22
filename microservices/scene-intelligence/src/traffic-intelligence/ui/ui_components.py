@@ -44,7 +44,24 @@ class UIComponents:
             import markdown  # type: ignore
             return markdown.markdown(md_text, extensions=["extra", "sane_lists", "tables"])  # type: ignore
         except Exception:
-            pass    
+            pass
+    
+    @staticmethod
+    def _get_traffic_density_color(density: int) -> str:
+        """Get background color based on traffic density
+        
+        Args:
+            density: Number of vehicles in the direction
+            
+        Returns:
+            CSS background color string
+        """
+        if density > 8:
+            return "#ecb3b3"  # Light red for >8 vehicles
+        elif density >= 5:
+            return "#ffff99"  # Yellow for 5-8 vehicles
+        else:
+            return "#ffffff"  # Default white for <5 vehicles    
     @staticmethod
     def create_header(monitoring_data: Optional[MonitoringData] = None) -> str:
         """Create the header section with system title and status"""
@@ -76,25 +93,31 @@ class UIComponents:
         data = monitoring_data.data
         total_pedestrians = monitoring_data.get_total_pedestrians()
         
+        # Get background colors for each direction based on traffic density
+        north_bg_color = UIComponents._get_traffic_density_color(data.northbound_density)
+        south_bg_color = UIComponents._get_traffic_density_color(data.southbound_density)
+        east_bg_color = UIComponents._get_traffic_density_color(data.eastbound_density)
+        west_bg_color = UIComponents._get_traffic_density_color(data.westbound_density)
+        
         return f"""
         <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 20px; margin: 10px 0; border: 1px solid {colors['border']}; box-shadow: {colors['shadow']};">
             <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🚦 TRAFFIC SUMMARY</h3>
             
             <!-- Directional Traffic Grid -->
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
-                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                <div style="text-align: center; background: {north_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.northbound_density}</div>
                     <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">↑ NORTH</div>
                 </div>
-                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                <div style="text-align: center; background: {south_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.southbound_density}</div>
                     <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">↓ SOUTH</div>
                 </div>
-                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                <div style="text-align: center; background: {east_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.eastbound_density}</div>
                     <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">→ EAST</div>
                 </div>
-                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                <div style="text-align: center; background: {west_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.westbound_density}</div>
                     <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">← WEST</div>
                 </div>

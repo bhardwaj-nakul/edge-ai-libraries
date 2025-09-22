@@ -58,27 +58,44 @@ class AutoRefreshManager:
 def create_status_indicator_html() -> str:
     """Create a status indicator that shows the auto-refresh status"""
     return """
+    <style>
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.3;
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 0.1;
+                transform: scale(1);
+            }
+        }
+    </style>
     <div id="refresh-status" style="
         position: fixed; 
         bottom: 20px; 
         right: 20px; 
-        background: rgba(0, 0, 0, 0.8); 
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8); 
         color: white; 
         padding: 10px 15px; 
         border-radius: 8px; 
         font-size: 12px; 
         z-index: 1000;
-        border: 1px solid #374151;
+        border: 1px solid #2563eb;
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
     ">
         <div style="display: flex; align-items: center; gap: 8px;">
             <div id="refresh-dot" style="
                 width: 8px; 
                 height: 8px; 
-                background: #10b981; 
+                background: white; 
                 border-radius: 50%; 
-                animation: pulse 2s infinite;
+                animation: pulse 1s infinite;
             "></div>
-            <span>Auto-refresh active</span>
+            <span style="color: white;">Auto-refresh active</span>
         </div>
     </div>
 

@@ -38,7 +38,7 @@ class VLMService:
         self.model = self.vlm_config.get("model", "gpt-4-vision-preview")
         self.timeout = self.vlm_config.get("timeout_seconds", 300)  # Reduced from 300 to 30 seconds
         self.max_tokens = self.vlm_config.get("max_completion_tokens", 2000)
-        self.temperature = self.vlm_config.get("temperature", 0.3)
+        self.temperature = self.vlm_config.get("temperature", 0.1)
         self.top_p = self.vlm_config.get("top_p", 0.1)
         
         # Traffic analysis settings
@@ -221,7 +221,7 @@ class VLMService:
         density_info = []
         for direction, count in traffic_snapshot.directional_counts.items():
             status = "HIGH" if count >= self.high_density_threshold else "NORMAL"
-            density_info.append(f"{direction.title()}: {count} vehicles ({status})")
+            density_info.append(f"{direction.title()}: {count} vehicles")
         
         density_summary = "\n".join(density_info)
         
@@ -242,17 +242,19 @@ Directional breakdown:
 
 {weather_context}
 
-ANALYSIS REQUIREMENTS:
+ANALYSIS INSTRUCTIONS:
 Please provide a structured analysis in JSON format with the following key details:
 
-1. "analysis": Detailed human like overview of current traffic conditions based on the image data and traffic counts.
+RESPONSE FORMAT:
+
+1. "analysis": A detailed, human-like summary of the intersection current state, referencing specific image observations, traffic patterns, and weather impacts.
 2. "alerts": Array of alert objects with:
    - "alert_type": one of [congestion, weather_related, road_condition, accident, maintenance]
-   - "level": one of [info, warning, critical]
-   - "description": detailed alert description
+   - "level": one of [info, warning]
+   - "description": Detailed, context-rich explanation of the alert
    - "weather_related": boolean indicating if weather is a factor
 3. "recommendations": Array of recommendation objects with:
-   - "recommendation": the recommendation text
+   - "recommendation": Clear advice for traffic management or safety
    - "priority": one of [high, medium, low]
 
 Respond ONLY with valid JSON format enclosed in markdown code blocks like:
@@ -294,6 +296,8 @@ Respond ONLY with valid JSON format enclosed in markdown code blocks like:
         request = {
             "model": self.model,
             "max_completion_tokens": self.max_tokens,
+            "top_p": self.top_p,
+            "temperature": self.temperature,
             "messages": [
                 {
                     "role": "user",
