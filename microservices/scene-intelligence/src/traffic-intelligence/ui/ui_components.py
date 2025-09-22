@@ -11,6 +11,26 @@ from models import MonitoringData
 from config import Config
 
 
+class ThemeColors:
+    """Theme-aware color configuration"""
+    
+    @staticmethod
+    def get_colors():
+        """Get theme colors based on UI_THEME setting"""
+        is_light = Config.UI_THEME == "light"
+        
+        return {
+            'bg_primary': '#ffffff' if is_light else '#1f2937',
+            'bg_secondary': '#f8fafc' if is_light else '#374151', 
+            'bg_card': '#ffffff' if is_light else '#374151',
+            'text_primary': '#1f2937' if is_light else '#f3f4f6',
+            'text_secondary': '#64748b' if is_light else '#d1d5db',
+            'border': '#e2e8f0' if is_light else '#4b5563',
+            'header_bg': 'linear-gradient(135deg, #1e3a8a, #3b82f6)' if is_light else 'linear-gradient(135deg, #1e3a8a, #3b82f6)',
+            'shadow': '0 2px 4px rgba(0,0,0,0.1)' if is_light else '0 2px 4px rgba(0,0,0,0.3)'
+        }
+
+
 class UIComponents:
     """UI component generator class"""
 
@@ -28,18 +48,20 @@ class UIComponents:
     @staticmethod
     def create_header(monitoring_data: Optional[MonitoringData] = None) -> str:
         """Create the header section with system title and status"""
+        colors = ThemeColors.get_colors()
+        
         if not monitoring_data:
-            return """
-            <div style="text-align: center; background: linear-gradient(135deg, #1e3a8a, #3b82f6); 
-                        padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            return f"""
+            <div style="text-align: center; background: {colors['header_bg']}; 
+                        padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: {colors['shadow']};">
                 <p style="color: white; margin: 0; font-size: 26px; font-weight: 600;">🚦 Traffic MONITORING SYSTEM</p>
                 <p style="color: #fbbf24; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">⚠️ DATA UNAVAILABLE</p>
             </div>
             """
         
         return f"""
-        <div style="text-align: center; background: linear-gradient(135deg, #1e3a8a, #3b82f6); 
-                    padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <div style="text-align: center; background: {colors['header_bg']}; 
+                    padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: {colors['shadow']};">
             <p style="color: white; margin: 0; font-size: 26px; font-weight: 600;">🚦 {Config.APP_TITLE} | {monitoring_data.data.intersection_name}</p> 
         </div>
         """
@@ -50,42 +72,43 @@ class UIComponents:
         if not monitoring_data:
             return "<p style='text-align: center; color: #ef4444;'>No traffic data available</p>"
         
+        colors = ThemeColors.get_colors()
         data = monitoring_data.data
         total_pedestrians = monitoring_data.get_total_pedestrians()
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;">
-            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🚦 TRAFFIC SUMMARY</h3>
+        <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 20px; margin: 10px 0; border: 1px solid {colors['border']}; box-shadow: {colors['shadow']};">
+            <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🚦 TRAFFIC SUMMARY</h3>
             
             <!-- Directional Traffic Grid -->
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.northbound_density}</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">↑ NORTH</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">↑ NORTH</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.southbound_density}</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">↓ SOUTH</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">↓ SOUTH</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.eastbound_density}</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">→ EAST</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">→ EAST</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.westbound_density}</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">← WEST</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">← WEST</div>
                 </div>
             </div>
             
             <!-- Total Summary Grid -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 6px;">{data.total_density}</div>
-                    <div style="color: #d1d5db; font-weight: 500; font-size: 0.9em;">TOTAL VEHICLES</div>
+                    <div style="color: {colors['text_secondary']}; font-weight: 500; font-size: 0.9em;">TOTAL VEHICLES</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #fbbf24; font-weight: bold; margin-bottom: 6px;">{total_pedestrians}</div>
-                    <div style="color: #d1d5db; font-weight: 500; font-size: 0.9em;">TOTAL PEDESTRIANS</div>
+                    <div style="color: {colors['text_secondary']}; font-weight: 500; font-size: 0.9em;">TOTAL PEDESTRIANS</div>
                 </div>
             </div>
         </div>
@@ -97,6 +120,7 @@ class UIComponents:
         if not monitoring_data:
             return "<p style='text-align: center; color: #ef4444;'>No environmental data available</p>"
         
+        colors = ThemeColors.get_colors()
         weather = monitoring_data.weather_data
         
         # Determine air quality status (simulated)
@@ -124,41 +148,78 @@ class UIComponents:
         else:
             wind_text = "W"
         
+        # Format dewpoint for display
+        dewpoint_display = "N/A"
+        if weather.dewpoint is not None:
+            # Convert from Celsius to Fahrenheit for consistency
+            dewpoint_f = (weather.dewpoint * 9/5) + 32
+            dewpoint_display = f"{dewpoint_f:.0f}°F"
+        
+        # Day/Night status
+        daytime_status = "Unknown"
+        daytime_icon = "🌅"
+        if weather.is_daytime is not None:
+            if weather.is_daytime:
+                daytime_status = "Daytime"
+                daytime_icon = "☀️"
+            else:
+                daytime_status = "Nighttime"
+                daytime_icon = "🌙"
+        
+        # Format forecast period
+        forecast_period = "Current"
+        if weather.start_time and weather.end_time:
+            try:
+                from datetime import datetime
+                start_dt = datetime.fromisoformat(weather.start_time.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(weather.end_time.replace('Z', '+00:00'))
+                forecast_period = f"{start_dt.strftime('%H:%M')} - {end_dt.strftime('%H:%M')}"
+            except:
+                forecast_period = "Current Hour"
+        
+        # Use relative humidity from API if available, otherwise use the estimated value
+        display_humidity = weather.relative_humidity if weather.relative_humidity is not None else weather.humidity_percent
+        
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;">
-            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🌡️ ENVIRONMENTAL DATA</h3>
+        <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 20px; margin: 10px 0; border: 1px solid {colors['border']}; box-shadow: {colors['shadow']};">
+            <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">🌡️ ENVIRONMENTAL DATA</h3>
             
             <!-- Primary Weather Metrics -->
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                    <div style="font-size: 1.5em; color: #fbbf24; font-weight: bold; margin-bottom: 5px;">{int(weather.temperature_fahrenheit)}°F</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">TEMPERATURE</div>
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1.5em; color: #fbbf24; font-weight: bold; margin-bottom: 5px;">{int(weather.temperature_fahrenheit)}°{weather.temperature_unit}</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">TEMPERATURE</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{weather.humidity_percent}%</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">HUMIDITY</div>
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{display_humidity:.0f}%</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">HUMIDITY</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #a78bfa; font-weight: bold; margin-bottom: 5px;">{weather.wind_speed_mph:.1f} mph</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">WIND</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">WIND {wind_text}</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                    <div style="font-size: 1.5em; color: #34d399; font-weight: bold; margin-bottom: 5px;">{weather.precipitation_mm:.1f} mm</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">RAINFALL</div>
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1.5em; color: #34d399; font-weight: bold; margin-bottom: 5px;">{weather.precipitation_prob:.0f}%</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">RAINFALL (P)</div>
                 </div>
             </div>
             
             <!-- Additional Environmental Info -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                    <div style="font-size: 1.5em; color: {air_color}; font-weight: bold; margin-bottom: 6px;">{air_quality}</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">AIR QUALITY</div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1.5em; color: #f97316; font-weight: bold; margin-bottom: 5px;">{dewpoint_display}</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">DEWPOINT</div>
                 </div>
-                <div style="text-align: center; background: #374151; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                    <div style="font-size: 1em; font-weight: bold; margin-bottom: 6px;">{weather.conditions}</div>
-                    <div style="color: #d1d5db; font-size: 0.9em; font-weight: 500;">CONDITIONS</div>
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1.5em; color: #8b5cf6; font-weight: bold; margin-bottom: 5px;">{daytime_icon}</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">{daytime_status.upper()}</div>
                 </div>
             </div>
+            
+                <div style="text-align: center; background: {colors['bg_card']}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1em; font-weight: bold; margin-bottom: 6px; color: {colors['text_primary']};">{weather.conditions}</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">CONDITIONS</div>
+                </div>
         </div>
         """
 
@@ -168,13 +229,14 @@ class UIComponents:
         if not monitoring_data:
             return "<p style='text-align: center; color: #ef4444;'>No alerts data available</p>"
         
+        colors = ThemeColors.get_colors()
         alerts = monitoring_data.vlm_analysis.alerts
         recommendations = monitoring_data.vlm_analysis.recommendations or []
         
         if not alerts and not recommendations:
-            return """
-            <div style="background: #1f2937; border-radius: 12px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                <h3 style="color: #f3f4f6; margin: 0 0 15px 0; text-align: left;">🚨 Traffic Status and Alerts</h3>
+            return f"""
+            <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 15px; margin: 10px 0; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                <h3 style="color: {colors['text_primary']}; margin: 0 0 15px 0; text-align: left;">🚨 Traffic Status and Alerts</h3>
                 <div style="text-align: center; background: #065f46; padding: 20px; border-radius: 8px;">
                     <div style="font-size: 1.5em; color: #10b981;">✅ ALL SYSTEMS OPERATIONAL</div>
                     <div style="color: #d1fae5; margin-top: 10px;">No active alerts or recommendations</div>
@@ -194,12 +256,12 @@ class UIComponents:
                 
                 # Determine styling based on level
                 if level.lower() == "critical":
-                    bg_color = "#7f1d1d"  # Dark red
+                    bg_color = "#c75959"  # Dark red
                     text_color = "#fecaca"
                     icon = "🚨"
                     border_color = "#dc2626"
                 elif level.lower() == "warning":
-                    bg_color = "#92400e"  # Dark orange
+                    bg_color = "#b3724a"  # Dark orange
                     text_color = "#fed7aa"
                     icon = "⚠️"
                     border_color = "#f59e0b"
@@ -209,8 +271,8 @@ class UIComponents:
                     icon = "ℹ️"
                     border_color = "#3b82f6"
                 else:
-                    bg_color = "#374151"
-                    text_color = "#d1d5db"
+                    bg_color = "#D6DEEB"
+                    text_color = "#13171D"
                     icon = "ℹ️"
                     border_color = "#6b7280"
                 
@@ -242,7 +304,7 @@ class UIComponents:
         if recommendations:
             for idx, recommendation in enumerate(recommendations, 1):
                 recommendations_html += f"""
-                <div style="background: #065f46; color: #d1fae5; padding: 12px; 
+                <div style="background: #67c2a8; color: #ebf0ee; padding: 12px; 
                             border-radius: 6px; margin: 8px 0; border-left: 3px solid #10b981;">
                     <div style="font-size: 0.9em; line-height: 1.4;">
                         <strong>💡 Recommendation {idx}:</strong> {recommendation}
@@ -253,24 +315,21 @@ class UIComponents:
         analysis_html = UIComponents._render_markdown(monitoring_data.vlm_analysis.analysis)
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: left; font-size: 1.2em;">🚨 Traffic Status and Alerts</h3>
+        <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+            <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: left; font-size: 1.2em;">🚨 Traffic Status and Alerts</h3>
             
             {alerts_html}
             
             {f'''
             <div style="margin-top: 20px;">
-                <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 1.1em;">💡 Recommendations</h4>
+                <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.1em;">💡 Recommendations</h4>
                 {recommendations_html}
             </div>
             ''' if recommendations_html else ''}
             
-            <div style="margin-top: 20px; padding: 18px; background: #374151; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 1.05em;">Analysis Summary:</h4>
-                <div style="color: #d1d5db; margin: 0 0 12px 0; font-size: 0.95em; line-height: 1.5;">{analysis_html}</div>
-                <p style="color: #9ca3af; margin: 0; font-size: 0.9em; font-style: italic;">
-                    Analysis Age: {monitoring_data.vlm_analysis.analysis_age_minutes} minutes
-                </p>
+            <div style="margin-top: 20px; padding: 18px; background: {colors['bg_card']}; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.05em;">🔎 Analysis Summary:</h4>
+                <div style="color: #000000; margin: 0; font-size: 0.95em; line-height: 1.5;">{analysis_html}</div>
             </div>
         </div>
         """
@@ -325,6 +384,7 @@ class UIComponents:
         if not monitoring_data or not monitoring_data.camera_images:
             return "<p style='text-align: center; color: #ef4444;'>No camera images available</p>"
         
+        colors = ThemeColors.get_colors()
         cameras_html = ""
         
         # Define camera order for consistent layout - updated for new API format
@@ -355,18 +415,19 @@ class UIComponents:
                 if image_base64:
                     # Create data URL for image
                     image_src = f"data:image/jpeg;base64,{image_base64}"
+                    border_color = colors['border']
                     
                     cameras_html += f"""
-                    <div style="background: #374151; border-radius: 8px; padding: 15px; text-align: center; 
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.3); width: 100%;">
-                        <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 0.95em; font-weight: 600;">
+                    <div style="background: {colors['bg_card']}; border-radius: 8px; padding: 15px; text-align: center; 
+                                box-shadow: {colors['shadow']}; width: 100%; border: 1px solid {border_color};">
+                        <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 0.95em; font-weight: 600;">
                             {direction.upper()} VIEW - {camera_id}
                         </h4>
                         <div style="position: relative; display: block; width: 100%;">
                             <img src="{image_src}" 
                                  style="width: 100%; height: 200px; object-fit: cover; 
-                                        border-radius: 6px; border: 2px solid #6b7280; 
-                                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); display: block;" 
+                                        border-radius: 6px; border: 2px solid {border_color}; 
+                                        box-shadow: {colors['shadow']}; display: block;" 
                                  alt="{direction} view">
                             <div style="position: absolute; top: 8px; right: 8px; 
                                         background: rgba(220,38,38,0.9); color: white; 
@@ -379,14 +440,14 @@ class UIComponents:
                     """
                 else:
                     cameras_html += f"""
-                    <div style="background: #374151; border-radius: 8px; padding: 15px; text-align: center;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.3); width: 100%;">
-                        <h4 style="color: #f3f4f6; margin: 0 0 12px 0; font-size: 0.95em; font-weight: 600;">
+                    <div style="background: {colors['bg_card']}; border-radius: 8px; padding: 15px; text-align: center;
+                                box-shadow: {colors['shadow']}; width: 100%; border: 1px solid {colors['border']};">
+                        <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 0.95em; font-weight: 600;">
                             {direction.upper()} VIEW - {camera_id}
                         </h4>
-                        <div style="background: #4b5563; border-radius: 6px; padding: 40px; color: #9ca3af; 
+                        <div style="background: {colors['bg_secondary']}; border-radius: 6px; padding: 40px; color: {colors['text_secondary']}; 
                                     height: 200px; display: flex; flex-direction: column; justify-content: center; 
-                                    align-items: center; border: 2px solid #6b7280; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+                                    align-items: center; border: 2px solid {colors['border']}; box-shadow: {colors['shadow']};">
                             <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.7;">📷</div>
                             <div style="font-size: 13px; font-weight: 500;">No image available</div>
                         </div>
@@ -394,8 +455,8 @@ class UIComponents:
                     """
         
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">📹 Camera Feeds</h3>
+        <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+            <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;">📹 Camera Feeds</h3>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
                 {cameras_html}
             </div>
@@ -408,6 +469,8 @@ class UIComponents:
         # Use UTC and consistent formatting for both current time and last update
         from datetime import datetime, timezone
         from data_loader import get_last_update_time
+
+        colors = ThemeColors.get_colors()
 
         # Current time in UTC with date and time (consistent format)
         current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -427,12 +490,12 @@ class UIComponents:
         
         return f"""
         <div style="
-            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            background: {colors['bg_primary']};
             border-radius: 10px;
             padding: 18px;
             margin: 10px 0;
-            border: 1px solid #4b5563;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 1px solid {colors['border']};
+            box-shadow: {colors['shadow']};
         ">
             <div style="
                 display: grid;
@@ -450,11 +513,11 @@ class UIComponents:
                 </div>
                 <div>
                     <strong style="color: #60a5fa;">Last Update:</strong>
-                    <span style="color: #d1d5db;">{last_update}</span>
+                    <span style="color: {colors['text_primary']};">{last_update}</span>
                 </div>
                 <div>
                     <strong style="color: #60a5fa;">Current Time:</strong>
-                    <span style="color: #d1d5db;">{current_time}</span>
+                    <span style="color: {colors['text_primary']};">{current_time}</span>
                 </div>
                 <div>
                     <strong style="color: #60a5fa;">Dashboard:</strong>

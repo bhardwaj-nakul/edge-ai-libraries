@@ -48,88 +48,99 @@ def update_dashboard():
 def create_dashboard_interface():
     """Create the main dashboard interface"""
     
-    # Custom CSS for better styling
-    css = """
-    .gradio-container {
+    # Custom CSS for better styling - theme-aware
+    is_light_theme = Config.UI_THEME == "light"
+    
+    # Define theme colors
+    bg_primary = "#ffffff" if is_light_theme else "#1f2937"
+    bg_secondary = "#f8fafc" if is_light_theme else "#374151"
+    border_color = "#e2e8f0" if is_light_theme else "#4b5563"
+    text_primary = "#1f2937" if is_light_theme else "#f3f4f6"
+    
+    css = f"""
+    .gradio-container {{
         max-width: 1400px !important;
         margin: auto !important;
         padding: 10px !important;
-    }
+        background: {bg_primary} !important;
+    }}
     
-    .block {
+    .block {{
         border-radius: 12px !important;
-        border: 1px solid #374151 !important;
+        border: 1px solid {border_color} !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-    }
+        background: {bg_secondary} !important;
+    }}
     
-    .alert-urgent {
+    .alert-urgent {{
         background: linear-gradient(135deg, #ff4444, #cc0000) !important;
         color: white !important;
         border-radius: 8px !important;
         padding: 12px !important;
         margin: 4px !important;
         border-left: 4px solid #ff0000 !important;
-    }
+    }}
     
-    .alert-advisory {
+    .alert-advisory {{
         background: linear-gradient(135deg, #ff8800, #cc6600) !important;
         color: white !important;
         border-radius: 8px !important;
         padding: 12px !important;
         margin: 4px !important;
         border-left: 4px solid #ff6600 !important;
-    }
+    }}
     
-    .status-good {
+    .status-good {{
         color: #10b981 !important;
         font-weight: bold !important;
-    }
+    }}
     
-    .status-warning {
+    .status-warning {{
         color: #f59e0b !important;
         font-weight: bold !important;
-    }
+    }}
     
-    .status-critical {
+    .status-critical {{
         color: #ef4444 !important;
         font-weight: bold !important;
-    }
+    }}
     
-    .metric-card {
-        background: #374151 !important;
+    .metric-card {{
+        background: {bg_secondary} !important;
         border-radius: 12px !important;
         padding: 16px !important;
         margin: 8px !important;
-        border: 1px solid #4b5563 !important;
+        border: 1px solid {border_color} !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-    }
+    }}
     
-    .metric-value {
+    .metric-value {{
         font-size: 2em !important;
         font-weight: bold !important;
         margin: 8px 0 !important;
-    }
+        color: {text_primary} !important;
+    }}
     
     /* Gallery styling */
-    .gallery {
+    .gallery {{
         border-radius: 12px !important;
         overflow: hidden !important;
-    }
+    }}
     
     /* Button styling */
-    .primary {
+    .primary {{
         background: linear-gradient(135deg, #3b82f6, #1e40af) !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
         padding: 10px 20px !important;
-    }
+    }}
     """
     
     with gr.Blocks(
         css=css,
         title=Config.APP_TITLE,
-        theme=gr.themes.Monochrome() if Config.UI_THEME == "light" else gr.themes.Base()
+        theme=gr.themes.Base() if Config.UI_THEME == "light" else gr.themes.Monochrome()
     ) as interface:
         
         # Header component
@@ -186,8 +197,6 @@ def create_dashboard_interface():
         
         # Manual refresh button
         with gr.Row():
-            with gr.Column(scale=10):
-                gr.HTML("")  # Spacer
             with gr.Column(scale=2):
                 refresh_btn = gr.Button("🔄 Refresh Data", variant="primary", elem_id="refresh-data-btn")
         

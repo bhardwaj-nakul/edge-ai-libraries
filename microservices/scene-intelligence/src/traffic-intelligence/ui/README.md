@@ -110,7 +110,7 @@ The system fetches data from the Traffic Intelligence API endpoint. The API retu
   "weather_data": {
     "temperature_fahrenheit": 28,
     "humidity_percent": 55,
-    "precipitation_mm": 0.0,
+    "precipitation_prob": 0.0,
     "wind_speed_mph": 12.0,
     "wind_direction_degrees": 180,
     "conditions": "Clear Sky"

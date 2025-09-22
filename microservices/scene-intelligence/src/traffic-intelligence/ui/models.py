@@ -40,10 +40,18 @@ class WeatherData:
     timestamp: str
     temperature_fahrenheit: float
     humidity_percent: int
-    precipitation_mm: float
+    precipitation_prob: float
     wind_speed_mph: float
     wind_direction_degrees: int
     conditions: str
+    # New hourly forecast fields
+    dewpoint: Optional[float] = None                  # Dewpoint in Celsius
+    relative_humidity: Optional[float] = None         # Relative humidity percentage from API
+    is_daytime: Optional[bool] = None                 # Whether it's daytime
+    start_time: Optional[str] = None                  # Start time of the forecast period
+    end_time: Optional[str] = None                    # End time of the forecast period
+    detailed_forecast: Optional[str] = None           # Detailed forecast description
+    temperature_unit: str = "F"                       # Temperature unit
 
 
 @dataclass

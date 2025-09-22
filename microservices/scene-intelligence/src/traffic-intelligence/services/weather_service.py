@@ -173,9 +173,9 @@ class WeatherService:
                 
                 logger.info("Points API response successful", status_code=points_resp.status_code)
 
-                # Step 2: Get forecast URL from the gridpoint response
-                forecast_url = points_data["properties"]["forecast"]
-                logger.info("Making request to forecast API", url=forecast_url)
+                # Step 2: Get hourly forecast URL from the gridpoint response
+                forecast_url = points_data["properties"]["forecastHourly"]
+                logger.info("Making request to hourly forecast API", url=forecast_url)
 
                 # Step 3: Fetch forecast data
                 forecast_resp = requests.get(forecast_url, headers={"User-Agent": self.user_agent})
@@ -184,7 +184,7 @@ class WeatherService:
                 
                 logger.info("Forecast API response successful", status_code=forecast_resp.status_code)
 
-                # Step 4: Process the first forecast period and format according to specified structure
+                # Step 4: Process the first forecast period (most current hour) and format according to specified structure
                 first_period = forecast_data["properties"]["periods"][0]
                 
                 # Process weather data into WeatherData object
@@ -225,31 +225,38 @@ class WeatherService:
     def _get_mock_weather_data(self) -> WeatherData:
         """Provide mock weather data when API is unavailable."""
         return WeatherData(
-            name="Overnight",
-            temperature=61,
+            name="Current Hour",
+            temperature=85,
             temperature_unit="F",
-            detailed_forecast="A slight chance of rain before 5am. Mostly cloudy, with a low around 61. West wind around 3 mph. Chance of precipitation is 20%.",
+            detailed_forecast="Mostly cloudy conditions with light winds. No precipitation expected.",
             fetched_at=datetime.now(timezone.utc),
             is_precipitation=False,
             is_mock=True,
-            wind_speed="3 mph",
-            wind_direction="W",
-            short_forecast="Slight Chance Light Rain",
-            wind_info="3mph/W"
+            wind_speed="5 mph",
+            wind_direction="S",
+            short_forecast="Mostly Cloudy",
+            wind_info="5mph/S",
+            precipitation_prob=4.0,
+            dewpoint=17.2,
+            relative_humidity=47.0,
+            is_daytime=False,
+            start_time="2025-09-21T22:00:00-07:00",
+            end_time="2025-09-21T23:00:00-07:00"
         )
     
     def _process_weather_data(self, forecast_period: Dict[str, Any]) -> WeatherData:
         """
-        Process raw forecast data into WeatherData object.
+        Process raw hourly forecast data into WeatherData object.
         
         Args:
-            forecast_period: Raw forecast period from NWS API
+            forecast_period: Raw forecast period from NWS hourly API
             
         Returns:
             WeatherData object with processed weather information
         """
         # Get temperature and keep in Fahrenheit (as expected by WeatherData)
         temp_f = forecast_period.get("temperature", 72)
+        temp_unit = forecast_period.get("temperatureUnit", "F")
         
         # Get precipitation probability for road conditions
         precipitation_prob = forecast_period.get("probabilityOfPrecipitation", {})
@@ -261,12 +268,21 @@ class WeatherService:
         # Determine precipitation status and road conditions
         is_precipitation = prob_value > 30  # Consider > 30% as likely precipitation
         
-        # Get period name
-        period_name = forecast_period.get("name", "Current")
+        # Get period name (hourly forecast usually doesn't have a name, so use a default)
+        period_name = forecast_period.get("name", "Current Hour")
         
-        # Get detailed forecast
+        # Get detailed forecast (for hourly, this might be empty)
         detailed_forecast = forecast_period.get("detailedForecast", 
                                                forecast_period.get("shortForecast", "Clear conditions"))
+        
+        # If detailed forecast is empty, create one from available data
+        if not detailed_forecast.strip():
+            short_forecast = forecast_period.get("shortForecast", "Clear")
+            wind_speed = forecast_period.get("windSpeed", "0 mph")
+            wind_direction = forecast_period.get("windDirection", "N")
+            detailed_forecast = f"{short_forecast} conditions with {wind_speed} winds from the {wind_direction}."
+            if prob_value > 0:
+                detailed_forecast += f" {prob_value}% chance of precipitation."
 
         # Get short forecast
         short_forecast = forecast_period.get("shortForecast", "Clear")
@@ -281,11 +297,30 @@ class WeatherService:
         speed_match = re.search(r'(\d+)', wind_speed)
         speed_number = speed_match.group(1) if speed_match else "0"
         wind_info = f"{speed_number}mph/{wind_direction}"
+        
+        # Get dewpoint from hourly data
+        dewpoint_data = forecast_period.get("dewpoint", {})
+        dewpoint = None
+        if isinstance(dewpoint_data, dict):
+            dewpoint = dewpoint_data.get("value")
+        
+        # Get relative humidity from hourly data
+        humidity_data = forecast_period.get("relativeHumidity", {})
+        relative_humidity = None
+        if isinstance(humidity_data, dict):
+            relative_humidity = humidity_data.get("value")
+        
+        # Get daytime status
+        is_daytime = forecast_period.get("isDaytime", None)
+        
+        # Get time periods
+        start_time = forecast_period.get("startTime")
+        end_time = forecast_period.get("endTime")
 
         return WeatherData(
             name=period_name,
             temperature=temp_f,
-            temperature_unit="F",
+            temperature_unit=temp_unit,
             detailed_forecast=detailed_forecast,
             fetched_at=datetime.utcnow(),
             is_precipitation=is_precipitation,
@@ -293,7 +328,13 @@ class WeatherService:
             wind_speed=wind_speed,
             wind_direction=wind_direction,
             short_forecast=short_forecast,
-            wind_info=wind_info
+            wind_info=wind_info,
+            precipitation_prob=float(prob_value),
+            dewpoint=dewpoint,
+            relative_humidity=relative_humidity,
+            is_daytime=is_daytime,
+            start_time=start_time,
+            end_time=end_time
         )
    
     def _is_cache_valid(self) -> bool:

@@ -83,6 +83,12 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "wind_info": f"{traffic_response.weather_data.wind_speed.replace(' ', '')}/{traffic_response.weather_data.wind_direction}",
                 "fetched_at": traffic_response.weather_data.fetched_at.isoformat(),
                 "is_precipitation": traffic_response.weather_data.is_precipitation,
+                "precipitation_prob": traffic_response.weather_data.precipitation_prob,
+                "dewpoint": traffic_response.weather_data.dewpoint,
+                "relative_humidity": traffic_response.weather_data.relative_humidity,
+                "is_daytime": traffic_response.weather_data.is_daytime,
+                "start_time": traffic_response.weather_data.start_time,
+                "end_time": traffic_response.weather_data.end_time,
             },
             "vlm_analysis": {
                 "traffic_summary": traffic_response.vlm_analysis.traffic_summary,
@@ -142,6 +148,12 @@ async def get_current_weather(request: Request) -> Dict[str, Any]:
             "wind_info": f"{weather_data.wind_speed.replace(' ', '')}/{weather_data.wind_direction}",
             "fetched_at": weather_data.fetched_at.isoformat(),
             "is_precipitation": weather_data.is_precipitation,
+            "precipitation_prob": weather_data.precipitation_prob,
+            "dewpoint": weather_data.dewpoint,
+            "relative_humidity": weather_data.relative_humidity,
+            "is_daytime": weather_data.is_daytime,
+            "start_time": weather_data.start_time,
+            "end_time": weather_data.end_time,
         }
         
     except HTTPException:

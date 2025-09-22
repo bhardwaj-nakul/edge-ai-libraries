@@ -41,7 +41,8 @@ def get_weather(lat, lon):
         prob_value = precipitation_prob.get("value", 0) or 0
     else:
         prob_value = 0
-    precipitation_mm = _estimate_precipitation_mm(prob_value)
+    # Use probability directly instead of converting to mm
+    precipitation_prob = prob_value
     
     # Simplify conditions
     conditions = _simplify_conditions(first_period.get("shortForecast", "Clear"))
@@ -54,7 +55,7 @@ def get_weather(lat, lon):
         "timestamp": timestamp,
         "temperature_fahrenheit": temp_c,
         "humidity_percent": 60,  # NWS API doesn't provide humidity, using default
-        "precipitation_mm": precipitation_mm,
+        "precipitation_prob": precipitation_prob,
         "wind_speed_mph": wind_speed_mph,
         "wind_direction_degrees": wind_direction_degrees,
         "conditions": conditions
@@ -86,19 +87,6 @@ def _parse_wind_direction(direction_str: str) -> int:
     
     direction_str = direction_str.strip().upper()
     return direction_map.get(direction_str, 0)
-
-def _estimate_precipitation_mm(probability_percent: int) -> float:
-    """Estimate precipitation amount based on probability."""
-    if probability_percent == 0:
-        return 0.0
-    elif probability_percent <= 20:
-        return 0.5
-    elif probability_percent <= 50:
-        return 2.0
-    elif probability_percent <= 80:
-        return 5.0
-    else:
-        return 10.0
 
 def _simplify_conditions(short_forecast: str) -> str:
     """Simplify weather conditions to basic categories."""
@@ -138,4 +126,4 @@ if __name__ == "__main__":
     print(f"Temperature: {weather['temperature_fahrenheit']}°F")
     print(f"Conditions: {weather['conditions']}")
     print(f"Wind: {weather['wind_speed_mph']} mph from {weather['wind_direction_degrees']}°")
-    print(f"Precipitation: {weather['precipitation_mm']} mm")
+    print(f"Precipitation Probability: {weather['precipitation_prob']}%")

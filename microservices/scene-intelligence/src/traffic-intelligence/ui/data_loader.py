@@ -193,27 +193,22 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
         }
         wind_direction_degrees = direction_map.get(wind_direction_str.upper(), 0)
         
-        # Estimate precipitation based on forecast and is_precipitation flag
-        precipitation_mm = 0.0
-        if weather_data_raw.get("is_precipitation", False):
-            # Estimate precipitation amount based on forecast text
-            forecast = weather_data_raw.get("detailed_forecast", "").lower()
-            if "heavy" in forecast or "storm" in forecast:
-                precipitation_mm = 10.0
-            elif "moderate" in forecast or "rain" in forecast:
-                precipitation_mm = 5.0
-            elif "light" in forecast or "slight" in forecast or "chance" in forecast:
-                precipitation_mm = 1.0
+        # Get precipitation probability directly from API instead of estimating
+        precipitation_prob = weather_data_raw.get("precipitation_prob", 0.0)
         
         # Convert temperature to Fahrenheit if needed (API provides in F)
         temperature_f = weather_data_raw.get("temperature", 70)
         
-        # Estimate humidity (API doesn't provide this, use reasonable default based on precipitation)
-        humidity = 50
-        if weather_data_raw.get("is_precipitation", False):
-            humidity = 75
-        elif "clear" in weather_data_raw.get("short_forecast", "").lower():
-            humidity = 40
+        # Use relative humidity from API if available, otherwise estimate
+        humidity = weather_data_raw.get("relative_humidity", 50)
+        if humidity is None:
+            # Fallback estimation if API doesn't provide humidity
+            if weather_data_raw.get("is_precipitation", False):
+                humidity = 75
+            elif "clear" in weather_data_raw.get("short_forecast", "").lower():
+                humidity = 40
+            else:
+                humidity = 50
         
         # Use short_forecast for conditions if available, otherwise detailed_forecast
         conditions = weather_data_raw.get("short_forecast", 
@@ -222,11 +217,19 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
         weather_data = WeatherData(
             timestamp=weather_data_raw.get("fetched_at", ""),
             temperature_fahrenheit=temperature_f,
-            humidity_percent=humidity,
-            precipitation_mm=precipitation_mm,
+            humidity_percent=int(humidity),
+            precipitation_prob=precipitation_prob,
             wind_speed_mph=wind_speed_mph,
             wind_direction_degrees=wind_direction_degrees,
-            conditions=conditions
+            conditions=conditions,
+            # New hourly forecast fields
+            dewpoint=weather_data_raw.get("dewpoint"),
+            relative_humidity=weather_data_raw.get("relative_humidity"),
+            is_daytime=weather_data_raw.get("is_daytime"),
+            start_time=weather_data_raw.get("start_time"),
+            end_time=weather_data_raw.get("end_time"),
+            detailed_forecast=weather_data_raw.get("detailed_forecast"),
+            temperature_unit=weather_data_raw.get("temperature_unit", "F")
         )
         
         # Create complete monitoring data object
