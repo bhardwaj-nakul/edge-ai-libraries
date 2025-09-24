@@ -177,9 +177,6 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
             recommendations=recommendations
         )
 
-        analysis_age = (current_time - datetime.fromisoformat(vlm_analysis.analysis_timestamp).timestamp()) / 60000.0 if vlm_analysis.analysis_timestamp else 0.0
-        vlm_analysis.analysis_age_minutes = round(analysis_age, 2)
-
         # Parse weather data
         weather_data_raw = raw_data.get("weather_data", {})
         

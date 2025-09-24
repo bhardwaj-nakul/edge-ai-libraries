@@ -395,9 +395,6 @@ class UIComponents:
             <div style="margin-top: 20px; padding: 18px; background: {colors['bg_card']}; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                 <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.05em;">🔎 Analysis Summary:</h4>
                 <div style="color: #000000; margin: 0; font-size: 0.95em; line-height: 1.5;">{analysis_html}</div>
-                <p style="color: #9ca3af; margin: 0; font-size: 0.9em; font-style: italic;">
-                    Analysis Age: {monitoring_data.vlm_analysis.analysis_age_minutes} Mins
-                </p>
             </div>
         </div>
         """
