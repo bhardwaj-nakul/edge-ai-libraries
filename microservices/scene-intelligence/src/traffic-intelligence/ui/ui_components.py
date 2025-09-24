@@ -5,7 +5,6 @@ import base64
 import io
 from PIL import Image
 from typing import Optional, List, Tuple
-from datetime import datetime
 
 from models import MonitoringData
 from config import Config
@@ -105,6 +104,10 @@ class UIComponents:
             
             <!-- Directional Traffic Grid -->
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 18px;">
+                <div style="text-align: center; background: {east_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
+                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.eastbound_density}</div>
+                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">→ EAST</div>
+                </div>
                 <div style="text-align: center; background: {north_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.northbound_density}</div>
                     <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">↑ NORTH</div>
@@ -112,10 +115,6 @@ class UIComponents:
                 <div style="text-align: center; background: {south_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.southbound_density}</div>
                     <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">↓ SOUTH</div>
-                </div>
-                <div style="text-align: center; background: {east_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
-                    <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.eastbound_density}</div>
-                    <div style="color: {colors['text_secondary']}; font-size: 0.9em; font-weight: 500;">→ EAST</div>
                 </div>
                 <div style="text-align: center; background: {west_bg_color}; padding: 15px; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                     <div style="font-size: 1.5em; color: #60a5fa; font-weight: bold; margin-bottom: 5px;">{data.westbound_density}</div>
@@ -136,6 +135,49 @@ class UIComponents:
             </div>
         </div>
         """
+    
+    @staticmethod
+    def create_debug_panel(monitoring_data: Optional[MonitoringData]) -> str:
+        """
+        Create a hidden debug panel which is shown only when the debug checkbox is enabled.
+        Contains timestamp info about data and images for each direction.
+        """
+
+        if not monitoring_data:
+            return "<p style='text-align: center; color: #ef4444;'>No traffic data available</p>"
+        
+        data = monitoring_data.data
+        image = monitoring_data.camera_images
+
+        return f"""
+        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;font-family: Arial, sans-serif;">
+            <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;"> Debug Timestamps </h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-bottom: 5px;">
+                <div class="debug">
+                    <div style="color: #d1d5db; font-size: 0.7em; font-weight: 500;">→ EAST</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Data: {data.east_timestamp}</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Image: {image.get("east_camera", {}).get("timestamp")}</div>
+                </div>
+                <div class="debug">
+                    <div style="color: #d1d5db; font-size: 0.7em; font-weight: 500;">→ NORTH</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Data: {data.north_timestamp}</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Image: {image.get("north_camera", {}).get("timestamp")}</div>
+                </div>
+                <div class="debug">
+                    <div style="color: #d1d5db; font-size: 0.7em; font-weight: 500;">→ SOUTH</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Data: {data.south_timestamp}</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Image: {image.get("south_camera", {}).get("timestamp")}</div>
+                </div>
+                <div class="debug">
+                    <div style="color: #d1d5db; font-size: 0.7em; font-weight: 500;">→ WEST</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Data: {data.west_timestamp}</div>
+                    <div style="color: #9ca3af; font-size: 0.9em; font-weight: 400;">Image: {image.get("west_camera", {}).get("timestamp")}</div>
+                </div>
+            </div>
+        </div>
+        """
+
+
 
     @staticmethod
     def create_environmental_panel(monitoring_data: Optional[MonitoringData]) -> str:
@@ -353,6 +395,9 @@ class UIComponents:
             <div style="margin-top: 20px; padding: 18px; background: {colors['bg_card']}; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
                 <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.05em;">🔎 Analysis Summary:</h4>
                 <div style="color: #000000; margin: 0; font-size: 0.95em; line-height: 1.5;">{analysis_html}</div>
+                <p style="color: #9ca3af; margin: 0; font-size: 0.9em; font-style: italic;">
+                    Analysis Age: {monitoring_data.vlm_analysis.analysis_age_minutes} Mins
+                </p>
             </div>
         </div>
         """

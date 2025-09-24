@@ -16,10 +16,10 @@ from ui_components import UIComponents
 from auto_refresh import create_status_indicator_html
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def update_dashboard():
+def update_dashboard(debug_mode=False):
     """Update all dashboard components with fresh data"""
     try:
         # Load fresh data using API only
@@ -27,7 +27,7 @@ def update_dashboard():
         
         if not data:
             error_msg = "<div style='color: red; text-align: center; padding: 20px;'>❌ No data available</div>"
-            return error_msg, [], error_msg, error_msg, error_msg, error_msg
+            return error_msg, [], error_msg, error_msg, error_msg, error_msg, gr.HTML(visible=False)
         
         # Generate UI components
         header = UIComponents.create_header(data)
@@ -37,13 +37,14 @@ def update_dashboard():
         environmental = UIComponents.create_environmental_panel(data)
         alerts = UIComponents.create_alerts_panel(data)
         system_info = UIComponents.create_system_info(data)
+        debug_panel = UIComponents.create_debug_panel(data)
 
-        return header, camera_gallery, traffic, environmental, alerts, system_info
+        return header, camera_gallery, traffic, environmental, alerts, system_info, gr.HTML(value=debug_panel, visible=debug_mode)
 
     except Exception as e:
         logger.error(f"Error updating dashboard: {e}")
         error_msg = f"<div style='color: red; text-align: center; padding: 20px;'>❌ Error: {str(e)}</div>"
-        return error_msg, [], error_msg, error_msg, error_msg, error_msg
+        return error_msg, [], error_msg, error_msg, error_msg, error_msg, gr.HTML(visible=False)
 
 def create_dashboard_interface():
     """Create the main dashboard interface"""
@@ -63,6 +64,7 @@ def create_dashboard_interface():
         margin: auto !important;
         padding: 10px !important;
         background: {bg_primary} !important;
+        font-family: Arial, sans-serif !important;
     }}
     
     .block {{
@@ -120,7 +122,15 @@ def create_dashboard_interface():
         margin: 8px 0 !important;
         color: {text_primary} !important;
     }}
-    
+
+    .debug {{
+        padding: 5px;
+        background: #4b5563;
+        border-radius: 4px;
+        margin-top: 5px;
+        text-align: center;
+    }}
+       
     /* Gallery styling */
     .gallery {{
         border-radius: 12px !important;
@@ -165,9 +175,14 @@ def create_dashboard_interface():
                 traffic_component = gr.HTML()
                 
             with gr.Column(scale=1):
+                # Debug Panel
+                with gr.Row():
+                    debug_panel_component = gr.HTML(visible=False)
                 # Environmental data
-                environmental_component = gr.HTML()
-  
+                with gr.Row():
+                    environmental_component = gr.HTML()
+
+
         # Alerts section
         alerts_component = gr.HTML()
         
@@ -175,42 +190,57 @@ def create_dashboard_interface():
         system_info_component = gr.HTML()
 
         # Auto-refresh status indicator
-        refresh_status = gr.HTML(create_status_indicator_html())
+        gr.HTML(create_status_indicator_html())
         
         # Refresh function for the interface
-        def refresh_data():
+        def refresh_data(debug_mode_checked):
             """Refresh dashboard data"""
-            return update_dashboard()
+            return update_dashboard(debug_mode=debug_mode_checked)
         
+        # Manual refresh button and debug toggle
+        with gr.Row(elem_id="footer-actions"):
+            with gr.Column(scale=2):
+                pass  
+            with gr.Column(scale=1):
+                with gr.Row():                    
+                    refresh_btn = gr.Button("🔄 Refresh Data", variant="primary", elem_id="refresh-data-btn")
+                with gr.Row():
+                    debug_mode = gr.Checkbox(label="🐞 Show Debug Info", value=False, container=False)
+
         # Initial load of data
         interface.load(
             fn=refresh_data,
+            inputs=[debug_mode],
             outputs=[
                 header_component,
                 camera_gallery,
                 traffic_component, 
                 environmental_component,
                 alerts_component,
-                system_info_component
+                system_info_component,
+                debug_panel_component
             ]
         )
-        
-        # Manual refresh button
-        with gr.Row():
-            with gr.Column(scale=2):
-                refresh_btn = gr.Button("🔄 Refresh Data", variant="primary", elem_id="refresh-data-btn")
-        
         # Set up manual refresh handler
         refresh_btn.click(
             fn=refresh_data,
+            inputs=[debug_mode],
             outputs=[
                 header_component,
                 camera_gallery,
                 traffic_component,
                 environmental_component,
                 alerts_component,
-                system_info_component
+                system_info_component,
+                debug_panel_component
             ]
+        )
+
+        # Show/hide debug panel
+        debug_mode.change(
+            fn=lambda x: gr.update(visible=x),
+            inputs=debug_mode,
+            outputs=debug_panel_component
         )
 
         # Auto refresh using Gradio Timer (server side)
@@ -218,13 +248,15 @@ def create_dashboard_interface():
             auto_timer = gr.Timer(value=Config.REFRESH_INTERVAL_SECONDS)
             auto_timer.tick(
                 fn=refresh_data,
+                inputs=[debug_mode],
                 outputs=[
                     header_component,
                     camera_gallery,
                     traffic_component,
                     environmental_component,
                     alerts_component,
-                    system_info_component
+                    system_info_component,
+                    debug_panel_component
                 ]
             )
             logger.info("Gradio Timer auto-refresh enabled (value=%ss)" % Config.REFRESH_INTERVAL_SECONDS)

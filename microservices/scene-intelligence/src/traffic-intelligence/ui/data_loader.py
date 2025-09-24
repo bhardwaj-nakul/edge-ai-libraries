@@ -4,6 +4,7 @@ Data loader module for the RSU Monitoring System
 import logging
 import requests
 from typing import Optional
+from datetime import datetime, timezone
 
 from models import (
     MonitoringData, IntersectionData, RegionCount, 
@@ -91,15 +92,19 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
             westbound_density=traffic_data.get("west_camera", 0),    # Map west_camera to westbound_density
             total_density=traffic_data.get("total_density", 0),
             region_counts=region_counts,  # Use the region_counts created above
-            total_pedestrian_count=traffic_data.get("total_pedestrian_count", 0)  # Get total pedestrian count from API
+            total_pedestrian_count=traffic_data.get("total_pedestrian_count", 0),  # Get total pedestrian count from API
+            north_timestamp=traffic_data.get("north_timestamp"),
+            south_timestamp=traffic_data.get("south_timestamp"),
+            east_timestamp=traffic_data.get("east_timestamp"),
+            west_timestamp=traffic_data.get("west_timestamp"),
         )
         
         # Parse camera data - handle the new API structure
         camera_images = {}
         camera_data = raw_data.get("camera_images", {})
-        
+   
         # Handle the new API format where cameras are named like "west_camera", "north_camera", etc.
-        for camera_key, camera_info in camera_data.items():
+        for camera_key, camera_info in sorted(camera_data.items()):
             if isinstance(camera_info, dict):
                 camera_images[camera_key] = camera_info  # Store as dict for UI compatibility
             else:
@@ -110,7 +115,6 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
                     timestamp=camera_info.get("timestamp", ""),
                     image_base64=camera_info.get("image_base64")
                 )
-        
         # Parse VLM analysis
         vlm_data = raw_data.get("vlm_analysis", {})
         
@@ -161,17 +165,21 @@ def parse_api_response(raw_data: dict) -> Optional[MonitoringData]:
             high_density_directions.append("westbound")
             current_high_directions.append("westbound")
         
+        current_time = datetime.now(timezone.utc).timestamp()
         vlm_analysis = VLMAnalysis(
             analysis=vlm_data.get("traffic_summary", "No analysis available"),
             high_density_directions=high_density_directions,
             analysis_timestamp=vlm_data.get("analysis_timestamp", ""),
             current_high_directions=current_high_directions,
-            analysis_age_minutes=0.0,  # Will be calculated if needed
+            analysis_age_minutes=0.0,
             traffic_context=traffic_context,
             alerts=alerts,
             recommendations=recommendations
         )
-        
+
+        analysis_age = (current_time - datetime.fromisoformat(vlm_analysis.analysis_timestamp).timestamp()) / 60000.0 if vlm_analysis.analysis_timestamp else 0.0
+        vlm_analysis.analysis_age_minutes = round(analysis_age, 2)
+
         # Parse weather data
         weather_data_raw = raw_data.get("weather_data", {})
         
