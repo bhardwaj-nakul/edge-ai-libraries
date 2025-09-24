@@ -20,6 +20,7 @@ class AlertType(Enum):
     ROAD_CONDITION = "road_condition"
     ACCIDENT = "accident"
     MAINTENANCE = "maintenance"
+    NORMAL = "normal"
 
 
 @dataclass
@@ -67,8 +68,8 @@ class CameraImage:
     """Camera image data from MQTT."""
     camera_id: str
     direction: str           # north, south, east, west
-    timestamp: datetime
     image_base64: str
+    timestamp: Optional[datetime] = None
     image_size_bytes: Optional[int] = None
 
 
@@ -95,6 +96,12 @@ class IntersectionData:
     west_pedestrian: int = 0
     total_pedestrian_count: int = 0
 
+    # Timestamp of each directional count
+    north_timestamp: Optional[datetime] = None
+    south_timestamp: Optional[datetime] = None
+    east_timestamp: Optional[datetime] = None
+    west_timestamp: Optional[datetime] = None
+
 
 @dataclass
 class TrafficIntelligenceResponse:
@@ -105,6 +112,7 @@ class TrafficIntelligenceResponse:
     camera_images: Dict[str, Dict[str, Any]]  # Camera images by direction
     weather_data: WeatherData    # Weather information
     vlm_analysis: VLMAnalysisData  # VLM analysis with alerts
+    response_age: Optional[float] = None
 
 
 @dataclass
@@ -115,7 +123,7 @@ class CameraDataMessage:
     direction: str
     vehicle_count: int
     pedestrian_count: int = 0
-    timestamp: datetime = None
+    timestamp: Optional[datetime] = None
     image_data: Optional[str] = None  # Base64 encoded image
     
     def __post_init__(self):
@@ -130,8 +138,9 @@ class TrafficSnapshot:
     intersection_id: str
     directional_counts: Dict[str, int]  # camera direction -> count
     total_count: int
-    weather_conditions: Optional[WeatherData] = None
     camera_images: Optional[Dict[str, CameraImage]] = None
+    weather_conditions: Optional[WeatherData] = None
+    intersection_data: Optional[IntersectionData] = None
     
     def calculate_total(self) -> int:
         """Calculate total traffic count."""

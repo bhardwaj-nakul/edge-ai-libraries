@@ -78,6 +78,10 @@ class IntersectionData:
     total_density: int
     region_counts: Dict[str, RegionCount]
     total_pedestrian_count: Optional[int] = None  # Direct from API
+    north_timestamp: Optional[str] = None
+    south_timestamp: Optional[str] = None
+    east_timestamp: Optional[str] = None
+    west_timestamp: Optional[str] = None
 
 
 @dataclass

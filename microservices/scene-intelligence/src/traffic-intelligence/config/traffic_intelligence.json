@@ -26,7 +26,7 @@
     "retry_delay_seconds": 5,
     "max_retry_delay": 60,
     "image_command_interval_seconds": 30,
-    "rate_limit_seconds": 20.0
+    "rate_limit_seconds": 10.0
   },
   "weather": {
     "api_base_url": "https://api.weather.gov",

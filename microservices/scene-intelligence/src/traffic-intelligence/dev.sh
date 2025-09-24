@@ -114,7 +114,7 @@ run_ui() {
     export APP_HOST=${APP_HOST:-0.0.0.0}
     export USE_API=${USE_API:-true}
     export API_URL=${API_URL:-"http://localhost:8081/api/v1/traffic/current"}
-    export REFRESH_INTERVAL=${REFRESH_INTERVAL:-15}
+    export REFRESH_INTERVAL=${REFRESH_INTERVAL:-8.0}
     
     echo "UI Configuration:"
     echo "  Port: $APP_PORT"

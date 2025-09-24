@@ -9,7 +9,7 @@ class Config:
     """Configuration settings for the monitoring dashboard"""
     
     # Refresh settings
-    REFRESH_INTERVAL_SECONDS: int = int(os.getenv("REFRESH_INTERVAL", "15"))
+    REFRESH_INTERVAL_SECONDS: float = float(os.getenv("REFRESH_INTERVAL", "10.0"))
     
     # API settings
     API_URL: str = os.getenv("API_URL", "http://localhost:8081/api/v1/traffic/current")
@@ -23,9 +23,9 @@ class Config:
     UI_THEME: str = os.getenv("UI_THEME", "light")
     
     # Alert thresholds
-    HIGH_DENSITY_THRESHOLD: int = int(os.getenv("HIGH_DENSITY_THRESHOLD", "5"))
-    MODERATE_DENSITY_THRESHOLD: int = int(os.getenv("MODERATE_DENSITY_THRESHOLD", "3"))
-    
+    HIGH_DENSITY_THRESHOLD: int = int(float(os.getenv("HIGH_DENSITY_THRESHOLD", "5")))
+    MODERATE_DENSITY_THRESHOLD: int = int(float(os.getenv("MODERATE_DENSITY_THRESHOLD", "3")))
+
     # Weather alert thresholds
     HIGH_WIND_THRESHOLD: float = float(os.getenv("HIGH_WIND_THRESHOLD", "25.0"))
     HEAVY_RAIN_THRESHOLD: float = float(os.getenv("HEAVY_RAIN_THRESHOLD", "5.0"))
