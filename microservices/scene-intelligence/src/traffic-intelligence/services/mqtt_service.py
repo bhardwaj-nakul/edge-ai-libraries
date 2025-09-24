@@ -13,6 +13,9 @@ import paho.mqtt.client as mqtt
 import structlog
 
 from models import CameraDataMessage, CameraImage
+from .config import ConfigService
+from .data_aggregator import DataAggregatorService
+from .vlm_service import VLMService
 
 
 logger = structlog.get_logger(__name__)
@@ -25,8 +28,15 @@ class MQTTService:
     Subscribes to scenescape/data/camera/camera<1,2,3,4> topics and processes
     incoming camera data for traffic intelligence analysis.
     """
-    
-    def __init__(self, config_service, data_aggregator):
+
+    direction_mapping = {
+        '1': 'south',
+        '2': 'west', 
+        '3': 'north',
+        '4': 'east',
+    }
+
+    def __init__(self, config_service: ConfigService, data_aggregator: DataAggregatorService, vlm_service: VLMService):
         """
         Initialize MQTT service.
         
@@ -37,6 +47,7 @@ class MQTTService:
         self.config = config_service
         self.data_aggregator = data_aggregator
         self.mqtt_config = config_service.get_mqtt_config()
+        self.vlm_service = vlm_service
         
         # MQTT connection settings - use config or fallback to localhost
         self.host = self.mqtt_config.get("host", "localhost")
@@ -193,13 +204,13 @@ class MQTTService:
                 logger.info("Subscribed to image topic", topic=topic)
             
             # Automatically trigger getimage commands once connected and subscribed
-            if self.loop:
-                asyncio.run_coroutine_threadsafe(
-                    self._trigger_initial_getimage_commands(),
-                    self.loop
-                )
-            else:
-                logger.warning("No event loop set, cannot trigger initial getimage commands")
+            # if self.loop:
+            #     asyncio.run_coroutine_threadsafe(
+            #         self._trigger_initial_getimage_commands(),
+            #         self.loop
+            #     )
+            # else:
+            #     logger.warning("No event loop set, cannot trigger initial getimage commands")
                 
         else:
             self.connected = False
@@ -215,28 +226,33 @@ class MQTTService:
     
     def _on_message(self, client, userdata, msg):
         """MQTT message callback - process messages directly with rate limiting."""
+
         try:
-            # Parse message payload
+            current_ts = datetime.now(timezone.utc).timestamp()
+            if self.vlm_service.get_vlm_semaphore().locked():
+                # logger.info("VLM analysis currently running, skipping message receipt")
+                return
+            
             try:
                 payload = json.loads(msg.payload.decode())
-                # print('----------------------------------------')
-                # print(f"Topic: {msg.topic}")
-                # print(payload)
-                # print('----------------------------------------')
-
             except json.JSONDecodeError:
                 logger.error("Failed to parse MQTT message payload", 
                            topic=msg.topic, payload=msg.payload.decode()[:100])
                 return
 
-            # Check if this is a camera data topic
+            # Check if this is a camera data or camera image topic
             camera_data_match = self.camera_data_pattern.match(msg.topic)
             camera_image_match = self.camera_image_pattern.match(msg.topic)
             
             if camera_data_match:
                 # Handle camera data message
                 camera_number = camera_data_match.group(1)
-                timestamp = datetime.now(timezone.utc)
+                # if last processing less than rate_limit_seconds ago, skip
+                last_time = self.last_processed_time.get(f"data_{camera_number}", 0)
+                if current_ts - last_time < self.rate_limit_seconds:
+                    return
+                
+                self.last_processed_time[f"data_{camera_number}"] = current_ts
                 
                 # Schedule async processing for camera data
                 if self.loop:
@@ -244,7 +260,6 @@ class MQTTService:
                         self._process_camera_data_message(
                             camera_number=camera_number,
                             payload=payload,
-                            timestamp=timestamp,
                             topic=msg.topic
                         ),
                         self.loop
@@ -255,15 +270,13 @@ class MQTTService:
             elif camera_image_match:
                 # Handle camera image message
                 camera_number = camera_image_match.group(1)
-                timestamp = datetime.now(timezone.utc)
-                
+
                 # Schedule async processing for camera image
                 if self.loop:
                     asyncio.run_coroutine_threadsafe(
                         self._process_camera_image_message(
                             camera_number=camera_number,
                             payload=payload,
-                            timestamp=timestamp,
                             topic=msg.topic
                         ),
                         self.loop
@@ -345,15 +358,16 @@ class MQTTService:
         self.loop = loop
         logger.info("Event loop reference set for MQTT service")
 
-    async def send_getimage_commands(self) -> bool:
+    async def send_getimage_commands(self, camera_number: Optional[str] = None) -> bool:
         """Send 'getimage' command to all cameras."""
         if not self.connected:
             logger.warning("MQTT Publisher not connected, cannot send commands")
             return False
         
         try:
-            camera_ids = ["camera1", "camera2", "camera3", "camera4"]
-            
+            all_cameras = ["camera1", "camera2", "camera3", "camera4"]
+            camera_ids = [f"camera{camera_number}"] if camera_number else all_cameras
+
             if not camera_ids:
                 logger.warning("No camera IDs found")
                 return False
@@ -363,7 +377,7 @@ class MQTTService:
                 try:
                     topic = f"scenescape/cmd/camera/{camera_id}"
                     message = "getimage"
-                    
+
                     result = self.client.publish(topic, message)
                     if result.rc == mqtt.MQTT_ERR_SUCCESS:
                         success_count += 1
@@ -374,7 +388,7 @@ class MQTTService:
                                      result_code=result.rc)
                     
                     # Small delay between commands to avoid overwhelming the broker
-                    await asyncio.sleep(0.1)
+                    # await asyncio.sleep(0.1)
                     
                 except Exception as e:
                     logger.error("Error sending getimage command", 
@@ -416,7 +430,7 @@ class MQTTService:
     async def _process_camera_image_message(self,
                                            camera_number: str,
                                            payload: Dict[str, Any],
-                                           timestamp: datetime,
+                                        #    timestamp: datetime,
                                            topic: str) -> None:
         """
         Process camera image message from MQTT.
@@ -428,54 +442,36 @@ class MQTTService:
             topic: MQTT topic
         """
         try:
-            # Rate limiting check for image messages
-            current_time = timestamp.timestamp()
-            last_time = self.last_processed_time.get(f"image_{camera_number}", 0)
-            
-            if current_time - last_time < self.rate_limit_seconds:
-                return
-            
-            # Update last processed time
-            self.last_processed_time[f"image_{camera_number}"] = current_time
+            logger.info("Processing camera image message", camera_number=camera_number, topic=topic)
             
             # Extract data from payload
             camera_id = payload.get('id', f'camera{camera_number}')
             image_data = payload.get('image')  # Base64 encoded image
-            image_timestamp_str = payload.get('timestamp')
-            
             if not image_data:
                 logger.warning("No image data in image message", camera_id=camera_id, topic=topic)
                 return
-            
-            # Parse image timestamp
-            image_timestamp = timestamp
-            if image_timestamp_str:
+
+            image_timestamp = payload.get('timestamp', None)
+            if image_timestamp:
                 try:
-                    image_timestamp = datetime.fromisoformat(image_timestamp_str.replace('Z', '+00:00'))
+                    image_timestamp = datetime.fromisoformat(image_timestamp)
                 except:
                     pass
             
             # Map camera number to direction (configurable mapping)
-            direction_mapping = {
-                '1': 'north',
-                '2': 'south', 
-                '3': 'east',
-                '4': 'west',
-            }
-            direction = direction_mapping.get(camera_number, f'camera{camera_number}')
+            direction = MQTTService.direction_mapping.get(camera_number, f'camera{camera_number}')
             
             # Create camera image
             camera_image = CameraImage(
                 camera_id=camera_id,
                 direction=direction,
-                timestamp=image_timestamp,
                 image_base64=image_data,
+                timestamp=image_timestamp,
                 image_size_bytes=len(image_data) * 3 // 4 if image_data else None  # Approximate base64 decode size
             )
             
             # Send to data aggregator for processing (image only)
             await self.data_aggregator.process_camera_image(camera_image)
-            
             
             logger.debug("Camera image processed successfully", 
                        camera_id=camera_id,
@@ -490,7 +486,7 @@ class MQTTService:
     async def _process_camera_data_message(self, 
                                          camera_number: str,
                                          payload: Dict[str, Any],
-                                         timestamp: datetime,
+                                        #  timestamp: datetime,
                                          topic: str) -> None:
         """
         Process camera data message from MQTT.
@@ -502,44 +498,32 @@ class MQTTService:
             topic: MQTT topic
         """
         try:
-            # Rate limiting check for data messages
-            current_time = timestamp.timestamp()
-            last_time = self.last_processed_time.get(f"data_{camera_number}", 0)
+            logger.info("Processing camera data message", camera_number=camera_number, topic=topic)
+            # Bring Image corresponding to current camera data
+            success = await self.send_getimage_commands(camera_number=camera_number)
+            if success:
+                logger.info(f"Getimage commands for camera {camera_number} sent successfully")
+            else:
+                logger.warning(f"Failed to send getimage command for camera {camera_number}")
             
-            if current_time - last_time < self.rate_limit_seconds:
-                return
-            
-            # Update last processed time
-            self.last_processed_time[f"data_{camera_number}"] = current_time
-            
+            await asyncio.sleep(1)  # Small wait to allow image to arrive
+                
             # Extract data from payload
             camera_id = payload.get('id', f'camera{camera_number}')
             intersection_id = self.config.get_intersection_id()
             
             # Map camera number to direction (configurable mapping)
-            direction_mapping = {
-                '1': 'north',
-                '2': 'south', 
-                '3': 'east',
-                '4': 'west',
-                # Add camera 4 for west if available
-            }
-            direction = direction_mapping.get(camera_number, f'camera{camera_number}')
+            direction = MQTTService.direction_mapping.get(camera_number, f'camera{camera_number}')
             
             # Extract traffic counts from objects array
             objects = payload.get('objects', {})
             vehicle_count = len(objects.get('vehicle', []))
             pedestrian_count = len(objects.get('pedestrian', []))
             
-            # Extract image data if available
-            image_data = payload.get('image_data')  # Base64 encoded image
-            image_timestamp_str = payload.get('timestamp')
-            
-            # Parse image timestamp
-            image_timestamp = timestamp
-            if image_timestamp_str:
+            data_timestamp = payload.get('timestamp', None)
+            if data_timestamp:
                 try:
-                    image_timestamp = datetime.fromisoformat(image_timestamp_str.replace('Z', '+00:00'))
+                    data_timestamp = datetime.fromisoformat(data_timestamp)
                 except:
                     pass
             
@@ -550,21 +534,20 @@ class MQTTService:
                 direction=direction,
                 vehicle_count=vehicle_count,
                 pedestrian_count=pedestrian_count,
-                timestamp=image_timestamp,
-                image_data=image_data
+                timestamp=data_timestamp,
             )
             
 
             # Print detailed object information
-            if objects:
-                if 'vehicle' in objects:
-                    for i, vehicle in enumerate(objects['vehicle']):
-                        conf = vehicle.get('confidence', 0)
-                        bbox = vehicle.get('bounding_box_px', {})
-                if 'pedestrian' in objects:
-                    for i, pedestrian in enumerate(objects['pedestrian']):
-                        conf = pedestrian.get('confidence', 0)
-                        bbox = pedestrian.get('bounding_box_px', {})
+            # if objects:
+            #     if 'vehicle' in objects:
+            #         for i, vehicle in enumerate(objects['vehicle']):
+            #             conf = vehicle.get('confidence', 0)
+            #             bbox = vehicle.get('bounding_box_px', {})
+            #     if 'pedestrian' in objects:
+            #         for i, pedestrian in enumerate(objects['pedestrian']):
+            #             conf = pedestrian.get('confidence', 0)
+            #             bbox = pedestrian.get('bounding_box_px', {})
                        
             # Send to data aggregator for processing
             await self.data_aggregator.process_camera_data(camera_message)
@@ -573,7 +556,7 @@ class MQTTService:
                        camera_id=camera_id,
                        direction=direction,
                        vehicle_count=vehicle_count,
-                       has_image=bool(image_data))
+                       has_image=False)
                     
         except Exception as e:
             logger.error("Failed to process camera data message", 

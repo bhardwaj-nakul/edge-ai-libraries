@@ -1,13 +1,13 @@
 """Weather service for traffic intelligence with caching and error handling."""
 
 import asyncio
-import re
 import requests
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import structlog
 
 from models import WeatherData
+from .config import ConfigService
 
 
 logger = structlog.get_logger(__name__)
@@ -21,7 +21,7 @@ class WeatherService:
     and provides weather analysis for traffic correlation.
     """
     
-    def __init__(self, config_service):
+    def __init__(self, config_service: ConfigService):
         """Initialize weather service with configuration."""
         self.config = config_service
         self.weather_config = config_service.get_weather_config()
@@ -242,6 +242,18 @@ class WeatherService:
             is_daytime=False,
             start_time="2025-09-21T22:00:00-07:00",
             end_time="2025-09-21T23:00:00-07:00"
+        )
+    
+    def get_default_weather(self) -> WeatherData:
+        """Get default weather data when none is available."""
+        return WeatherData(
+            name="Unknown", 
+            temperature=72, 
+            temperature_unit="F",
+            detailed_forecast="Weather data unavailable", 
+            fetched_at=datetime.now(timezone.utc),
+            is_precipitation=False,
+            is_mock=True
         )
     
     def _process_weather_data(self, forecast_period: Dict[str, Any]) -> WeatherData:

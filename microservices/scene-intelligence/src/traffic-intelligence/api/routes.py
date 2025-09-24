@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from fastapi.responses import JSONResponse
 import structlog
 
+from services.data_aggregator import DataAggregatorService
+
 
 logger = structlog.get_logger(__name__)
 
@@ -42,7 +44,7 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
     with weather data and VLM analysis.
     """
     try:
-        data_aggregator = get_data_aggregator(request)
+        data_aggregator: DataAggregatorService = get_data_aggregator(request)
         
         # Get current traffic intelligence
         traffic_response = await data_aggregator.get_current_traffic_intelligence()
@@ -53,6 +55,7 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
         # Convert to dict for JSON response
         response_dict = {
             "timestamp": traffic_response.timestamp,
+            "response_age": traffic_response.response_age if traffic_response.response_age else None,
             "intersection_id": traffic_response.intersection_id,
             "data": {
                 "intersection_id": traffic_response.data.intersection_id,
@@ -69,7 +72,11 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "south_pedestrian": traffic_response.data.south_pedestrian,
                 "east_pedestrian": traffic_response.data.east_pedestrian,
                 "west_pedestrian": traffic_response.data.west_pedestrian,
-                "total_pedestrian_count": traffic_response.data.total_pedestrian_count
+                "total_pedestrian_count": traffic_response.data.total_pedestrian_count,
+                "north_timestamp": traffic_response.data.north_timestamp,
+                "south_timestamp": traffic_response.data.south_timestamp,
+                "east_timestamp": traffic_response.data.east_timestamp,
+                "west_timestamp": traffic_response.data.west_timestamp,
             },
             "camera_images": traffic_response.camera_images,
             "weather_data": {

@@ -2,8 +2,10 @@
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
+
+from click import prompt
 import aiohttp
 import structlog
 
@@ -11,8 +13,11 @@ from models import (
     WeatherData, VLMAnalysisData, VLMAlert, AlertLevel, AlertType, 
     CameraImage, TrafficSnapshot
 )
+from .config import ConfigService
+from .weather_service import WeatherService
 
 
+# Update logger to show debug level logs for development
 logger = structlog.get_logger(__name__)
 
 
@@ -26,12 +31,14 @@ class VLMService:
     - Alert generation with severity levels
     - Traffic pattern recognition
     """
-    
-    def __init__(self, config_service, weather_service):
+
+    def __init__(self, config_service: ConfigService, weather_service: WeatherService):
         """Initialize VLM service with configuration and weather integration."""
         self.config = config_service
         self.weather_service = weather_service
         self.vlm_config = config_service.get_vlm_config()
+
+        self.weather_data: Optional[WeatherData] = None
         
         # VLM service configuration
         self.base_url = self.vlm_config.get("base_url", "http://vlm-service:8080")
@@ -59,11 +66,20 @@ class VLMService:
                    base_url=self.base_url,
                    model=self.model,
                    threshold=self.high_density_threshold)
+        
+    def get_vlm_semaphore(self) -> asyncio.Semaphore:
+        """Get the VLM semaphore for external use."""
+        return self._vlm_semaphore
+        
+    def get_weather_details(self) -> Optional[WeatherData]:
+        """Get the last fetched weather data."""
+        return self.weather_data or self.weather_service.get_default_weather()
     
-    async def analyze_traffic_with_weather(self, 
-                                         traffic_snapshot: TrafficSnapshot,
-                                         camera_images: List[CameraImage],
-                                         weather_data: Optional[WeatherData] = None) -> Optional[VLMAnalysisData]:
+    async def analyze_traffic_with_weather(
+            self, 
+            traffic_snapshot: TrafficSnapshot,
+            camera_images: List[CameraImage]
+    ) -> Optional[VLMAnalysisData]:
         """
         Perform comprehensive traffic analysis with weather context.
         
@@ -76,9 +92,11 @@ class VLMService:
             VLMAnalysisData with structured analysis and alerts
         """
         try:
-            # Get weather data if not provided
-            if weather_data is None:
-                weather_data = await self.weather_service.get_current_weather()
+            try:
+                self.weather_data = await self.weather_service.get_current_weather()
+            except Exception as e:
+                logger.warning("Weather fetch failed during VLM analysis, using cached or default data", error=str(e))
+                self.weather_data = self.weather_data or self.weather_service.get_default_weather()
 
             # Check if analysis is needed
             if not self._should_analyze(traffic_snapshot):
@@ -88,7 +106,7 @@ class VLMService:
                 return None
             
             # Create structured prompt with weather context
-            prompt = self._create_structured_prompt(traffic_snapshot, weather_data)
+            prompt = self._create_structured_prompt(traffic_snapshot, self.weather_data)
 
             logger.info("Generated VLM prompt", prompt=prompt)
             
@@ -105,7 +123,7 @@ class VLMService:
             if analysis_result:
                 # Parse structured response
                 structured_analysis = self._parse_vlm_response(
-                    analysis_result, traffic_snapshot, weather_data
+                    analysis_result, traffic_snapshot, self.weather_data
                 )
                 
                 # Cache the analysis
@@ -113,7 +131,7 @@ class VLMService:
                 
                 # Store as last successful analysis for reuse when service is busy
                 self._last_analysis = structured_analysis
-                self._last_analysis_timestamp = datetime.utcnow()
+                self._last_analysis_timestamp = datetime.now(timezone.utc)
                 
                 logger.info("VLM analysis completed successfully", 
                            intersection_id=traffic_snapshot.intersection_id,
@@ -128,18 +146,13 @@ class VLMService:
             logger.error("VLM analysis failed", error=str(e))
             return None
     
-    async def analyze_traffic_non_blocking(self, 
-                                         traffic_snapshot: TrafficSnapshot,
-                                         camera_images: List[CameraImage],
-                                         weather_data: Optional[WeatherData] = None) -> Optional[VLMAnalysisData]:
+    async def analyze_traffic_non_blocking(self, traffic_snapshot: TrafficSnapshot) -> Optional[VLMAnalysisData]:
         """
         Non-blocking traffic analysis that uses semaphore to prevent concurrent requests.
         Returns cached analysis if VLM service is busy.
         
         Args:
             traffic_snapshot: Current traffic data
-            camera_images: List of camera images from intersection  
-            weather_data: Current weather data (optional)
             
         Returns:
             VLMAnalysisData - either new analysis or cached result if service is busy
@@ -147,9 +160,10 @@ class VLMService:
         try:
             # Try to acquire semaphore without blocking
             if self._vlm_semaphore.locked():
+                current_time = datetime.now(timezone.utc)
                 logger.info("VLM service is busy, returning cached analysis", 
                            has_cached_analysis=self._last_analysis is not None,
-                           last_analysis_age_minutes=(datetime.utcnow() - self._last_analysis_timestamp).total_seconds() / 60 
+                           last_analysis_age_minutes=(current_time - self._last_analysis_timestamp).total_seconds() / 60 
                            if self._last_analysis_timestamp else None)
                 
                 # Return last successful analysis if available
@@ -159,7 +173,7 @@ class VLMService:
                         traffic_summary=self._last_analysis.traffic_summary,
                         alerts=self._last_analysis.alerts,
                         recommendations=self._last_analysis.recommendations,
-                        analysis_timestamp=datetime.utcnow()  # Update to current time
+                        analysis_timestamp=current_time  # Update to current time
                     )
                     logger.debug("Returning cached VLM analysis", 
                                original_timestamp=self._last_analysis.analysis_timestamp,
@@ -174,14 +188,15 @@ class VLMService:
                 logger.info("VLM service is free, performing new analysis")
                 
                 # Perform the actual analysis
+                camera_images = list(traffic_snapshot.camera_images.values())
                 analysis_result = await self.analyze_traffic_with_weather(
-                    traffic_snapshot, camera_images, weather_data
+                    traffic_snapshot, camera_images
                 )
                 
                 # Cache successful result
                 if analysis_result:
                     self._last_analysis = analysis_result
-                    self._last_analysis_timestamp = datetime.utcnow()
+                    self._last_analysis_timestamp = datetime.now(timezone.utc)
                     logger.info("New VLM analysis completed and cached", 
                                alerts_count=len(analysis_result.alerts))
                 else:
@@ -220,44 +235,41 @@ class VLMService:
         # Traffic density information
         density_info = []
         for direction, count in traffic_snapshot.directional_counts.items():
-            status = "HIGH" if count >= self.high_density_threshold else "NORMAL"
-            density_info.append(f"{direction.title()}: {count} vehicles")
+            status = "HIGH TRAFFIC" if count >= (self.high_density_threshold/2) else "NORMAL TRAFFIC"
+            density_info.append(f"{direction.title()}: {count} vehicles ({status})")
         
         density_summary = "\n".join(density_info)
         
         # Weather context
-        weather_context = "Weather conditions: Clear"
+        weather_context = "Weather conditions at the intersection: Clear"
         if weather_data:
-            weather_context = f"""Weather conditions: 
+            weather_context = f"""Weather conditions at the intersection: 
 - Temperature: {weather_data.temperature}°{weather_data.temperature_unit}
 - Conditions: {weather_data.detailed_forecast}"""
     
         # Create structured prompt
-        prompt = f"""Analyze traffic conditions at a traffic interection with 4 cameras.
+        prompt = f"""Analyze traffic conditions at a traffic intersection with 4 cameras in each of the 4 directions - East, North, South, West.
 
 TRAFFIC DATA:
-Total vehicles: {traffic_snapshot.total_count}
-Directional breakdown:
+Total number of vehicles on intersection : {traffic_snapshot.total_count}
+Directional traffic breakdown - Number of vehicles per direction:
 {density_summary}
 
 {weather_context}
 
-ANALYSIS INSTRUCTIONS:
-Please provide a structured analysis in JSON format with the following key details:
+ANALYSIS REQUIREMENTS:
+Please provide a structured analysis in JSON format with the following key details about the traffic situation:
 
-RESPONSE FORMAT:
-
-1. "analysis": A detailed, human-like summary of the intersection current state, referencing specific image observations, traffic patterns, and weather impacts.
-2. "alerts": Array of alert objects with:
-   - "alert_type": one of [congestion, weather_related, road_condition, accident, maintenance]
-   - "level": one of [info, warning]
-   - "description": Detailed, context-rich explanation of the alert
-   - "weather_related": boolean indicating if weather is a factor
-3. "recommendations": Array of recommendation objects with:
+1. "analysis": Detailed human like overview of current traffic conditions based on the image data for the intersection current state, referencing specific traffic image observations, traffic patterns, and weather impacts, total number of vehicles and directional traffic breakdown.
+2. "alerts": This field contains various subfields based on the traffic analysis. Array of alert objects with:
+   - "alert_type": one of [congestion, weather_related, road_condition, accident, maintenance, normal]
+   - "level": one of [info, warning, critical]
+   - "description": detailed context-rich alert description. This is based on the traffic analysis.
+   - "weather_related": boolean indicating if weather is a factor for the traffic situation
+3. "recommendations": Array of recommendation objects helping to make decisions while travelling through this intersection:
    - "recommendation": Clear advice for traffic management or safety
-   - "priority": one of [high, medium, low]
-
-Respond ONLY with valid JSON format enclosed in markdown code blocks like:
+   - "priority": one of [high, medium, low] based on how much strictly the recommendation should be followed. For example, for extreme congestions and weather conditions recommendation should be strictly followed otherwise it can be low priority.
+Strictly respond ONLY with valid JSON format enclosed in markdown code blocks like:
 ```json
 {{
   "analysis": "...",
@@ -373,11 +385,13 @@ Respond ONLY with valid JSON format enclosed in markdown code blocks like:
         """
         try:
             # Extract JSON from markdown code blocks if present
+            logger.debug(response_text)
             json_content = self._extract_json_from_response(response_text)
             
             # Parse JSON response
             response_data = json.loads(json_content)
             
+            logger.debug(response_data)
             logger.debug("VLM response parsed as JSON", 
                        response_keys=list(response_data.keys()) if isinstance(response_data, dict) else "non-dict")
             

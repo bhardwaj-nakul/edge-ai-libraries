@@ -74,11 +74,11 @@ async def lifespan(app: FastAPI):
         app.state.vlm_service = vlm_service
         
         # Initialize data aggregator service
-        data_aggregator = DataAggregatorService(config_service, weather_service, vlm_service)
+        data_aggregator = DataAggregatorService(config_service, vlm_service)
         app.state.data_aggregator = data_aggregator
         
         # Initialize and start MQTT service for camera data
-        mqtt_service = MQTTService(config_service, data_aggregator)
+        mqtt_service = MQTTService(config_service, data_aggregator, vlm_service)
         await mqtt_service.initialize()
         
         # Set the current event loop for async task scheduling
