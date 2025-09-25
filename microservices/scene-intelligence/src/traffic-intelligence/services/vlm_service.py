@@ -235,7 +235,7 @@ class VLMService:
         # Traffic density information
         density_info = []
         for direction, count in traffic_snapshot.directional_counts.items():
-            status = "HIGH TRAFFIC" if count >= (self.high_density_threshold/2) else "NORMAL TRAFFIC"
+            status = "HIGH TRAFFIC" if count >= (self.high_density_threshold * 2/3) else "NORMAL TRAFFIC"
             density_info.append(f"{direction.title()}: {count} vehicles ({status})")
         
         density_summary = "\n".join(density_info)
@@ -260,15 +260,15 @@ Directional traffic breakdown - Number of vehicles per direction:
 ANALYSIS REQUIREMENTS:
 Please provide a structured analysis in JSON format with the following key details about the traffic situation:
 
-1. "analysis": Detailed human like overview of current traffic conditions based on the image data for the intersection current state, referencing specific traffic image observations, traffic patterns, and weather impacts, total number of vehicles and directional traffic breakdown.
-2. "alerts": This field contains various subfields based on the traffic analysis. Array of alert objects with:
-   - "alert_type": one of [congestion, weather_related, road_condition, accident, maintenance, normal]
-   - "level": one of [info, warning, critical]
-   - "description": detailed context-rich alert description. This is based on the traffic analysis.
-   - "weather_related": boolean indicating if weather is a factor for the traffic situation
+1. "analysis": Detailed human like overview of current traffic conditions based on the image data for the intersection's current state, referencing specific traffic image observations, traffic patterns, and weather impacts, total number of vehicles and directional traffic breakdown.
+2. "alerts": This field is an array of alert objects based on the traffic analysis. Each alert object should strictly contain:
+   - "alert_type": value should be strictly one of the following: [congestion, weather_related, road_condition, accident, maintenance, normal]
+   - "level": value should be strictly one of the following: [info, warning, critical]
+   - "description": detailed context-rich alert description. This is based on the detailed traffic analysis.
+   - "weather_related": strictly a boolean value. If weather is a factor for the traffic situation value should be True, otherwise False
 3. "recommendations": Array of recommendation objects helping to make decisions while travelling through this intersection:
    - "recommendation": Clear advice for traffic management or safety
-   - "priority": one of [high, medium, low] based on how much strictly the recommendation should be followed. For example, for extreme congestions and weather conditions recommendation should be strictly followed otherwise it can be low priority.
+   - "priority": strictly one of the following: [high, medium, low]. These values to be chosen on the basis of how much strictly the recommendation should be followed. For example, for extreme congestions and weather conditions recommendation should be strictly followed otherwise it can be of low priority.
 Strictly respond ONLY with valid JSON format enclosed in markdown code blocks like:
 ```json
 {{

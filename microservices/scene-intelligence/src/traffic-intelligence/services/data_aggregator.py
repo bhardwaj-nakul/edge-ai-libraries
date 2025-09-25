@@ -283,9 +283,6 @@ class DataAggregatorService:
                 return
         
             # Trigger VLM analysis
-            logger.debug("HEY")
-            logger.debug(traffic_snapshot.intersection_data.total_density)
-            logger.debug(self.vlm_analyzed_intersection_data.total_density if self.vlm_analyzed_intersection_data else None)
             try:
                 vlm_analysis: VLMAnalysisData = await self.vlm_service.analyze_traffic_non_blocking(
                     traffic_snapshot=traffic_snapshot
