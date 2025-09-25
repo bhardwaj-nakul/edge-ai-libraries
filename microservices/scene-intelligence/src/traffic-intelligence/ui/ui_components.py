@@ -40,8 +40,8 @@ class UIComponents:
             return ""
 
         try:
-            import markdown  # type: ignore
-            return markdown.markdown(md_text, extensions=["extra", "sane_lists", "tables"])  # type: ignore
+            import markdown 
+            return markdown.markdown(md_text, extensions=["extra", "sane_lists", "tables"])
         except Exception:
             pass
     
@@ -60,7 +60,7 @@ class UIComponents:
         elif density >= 5:
             return "#ffff99"  # Yellow for 5-8 vehicles
         else:
-            return "#ffffff"  # Default white for <5 vehicles    
+            return "#ffffff"  # Default white for <5 vehicles
     @staticmethod
     def create_header(monitoring_data: Optional[MonitoringData] = None) -> str:
         """Create the header section with system title and status"""
@@ -150,7 +150,7 @@ class UIComponents:
         image = monitoring_data.camera_images
 
         return f"""
-        <div style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;font-family: Arial, sans-serif;">
+        <div class ="debug-panel" style="background: #1f2937; border-radius: 12px; padding: 20px; margin: 10px 0;font-family: Arial, sans-serif;">
             <h3 style="color: #f3f4f6; margin: 0 0 20px 0; text-align: center; font-size: 1.2em;"> Debug Timestamps </h3>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-bottom: 5px;">
                 <div class="debug">
@@ -225,10 +225,10 @@ class UIComponents:
         daytime_icon = "🌅"
         if weather.is_daytime is not None:
             if weather.is_daytime:
-                daytime_status = "Daytime"
+                daytime_status = "Day time"
                 daytime_icon = "☀️"
             else:
-                daytime_status = "Nighttime"
+                daytime_status = "Night time"
                 daytime_icon = "🌙"
         
         # Format forecast period
@@ -322,37 +322,41 @@ class UIComponents:
                 # Determine styling based on level
                 if level.lower() == "critical":
                     bg_color = "#c75959"  # Dark red
-                    text_color = "#fecaca"
+                    text_color = "#f6e4e4"
                     icon = "🚨"
                     border_color = "#dc2626"
+                    alt_color = "#802222"
                 elif level.lower() == "warning":
                     bg_color = "#b3724a"  # Dark orange
-                    text_color = "#fed7aa"
+                    text_color = "#ffe7cc"
                     icon = "⚠️"
                     border_color = "#f59e0b"
+                    alt_color = "#66361A"
                 elif level.lower() == "advisory":
-                    bg_color = "#1e40af"  # Dark blue
-                    text_color = "#bfdbfe"
+                    bg_color = "#3959BF"  # Dark blue
+                    text_color = "#dde4ed"
                     icon = "ℹ️"
                     border_color = "#3b82f6"
+                    alt_color = "#7EA8F1"
                 else:
                     bg_color = "#D6DEEB"
-                    text_color = "#13171D"
+                    text_color = "#25354E"
                     icon = "ℹ️"
                     border_color = "#6b7280"
-                
+                    alt_color = "#919CAD"
+
                 # Add weather icon if weather-related
                 if weather_related:
                     icon = "🌦️"
                 
                 alerts_html += f"""
-                <div style="background: {bg_color}; color: {text_color}; padding: 15px; 
-                            border-radius: 8px; margin: 10px 0; border-left: 4px solid {border_color};">
+                <div style="background: {bg_color}; !important; padding: 15px; 
+                            border-radius: 8px; margin: 10px 0; border-left: 4px solid {border_color} !important;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                        <strong>{icon} {level.upper()} ALERT</strong>
-                        <span style="font-size: 0.8em; opacity: 0.8;">{alert_type.replace('_', ' ').title()}</span>
+                        <strong style="color: {text_color};">{icon} {level.upper()} ALERT</strong>
+                        <span style="font-size: 0.8em; font-weight: bold; color: {alt_color};">{alert_type.replace('_', ' ').upper()}</span>
                     </div>
-                    <div style="font-size: 0.95em; line-height: 1.4;">{description}</div>
+                    <div style="font-size: 1.0em; line-height: 1.4; color: {text_color}">{description}</div>
                 </div>
                 """
             else:
@@ -371,7 +375,7 @@ class UIComponents:
                 recommendations_html += f"""
                 <div style="background: #67c2a8; color: #ebf0ee; padding: 12px; 
                             border-radius: 6px; margin: 8px 0; border-left: 3px solid #10b981;">
-                    <div style="font-size: 0.9em; line-height: 1.4;">
+                    <div style="font-size: 1.0em; line-height: 1.4;">
                         <strong>💡 Recommendation {idx}:</strong> {recommendation}
                     </div>
                 </div>
@@ -381,20 +385,20 @@ class UIComponents:
         
         return f"""
         <div style="background: {colors['bg_primary']}; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
-            <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: left; font-size: 1.2em;">🚨 Traffic Status and Alerts</h3>
+            <h3 style="color: {colors['text_primary']}; margin: 0 0 20px 0; text-align: left; font-size: 1.3em;">🚨 Traffic Status and Alerts</h3>
             
             {alerts_html}
             
             {f'''
             <div style="margin-top: 20px;">
-                <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.1em;">💡 Recommendations</h4>
+                <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.2em;">💡 Recommendations</h4>
                 {recommendations_html}
             </div>
             ''' if recommendations_html else ''}
             
             <div style="margin-top: 20px; padding: 18px; background: {colors['bg_card']}; border-radius: 8px; box-shadow: {colors['shadow']}; border: 1px solid {colors['border']};">
-                <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.05em;">🔎 Analysis Summary:</h4>
-                <div style="color: #000000; margin: 0; font-size: 0.95em; line-height: 1.5;">{analysis_html}</div>
+                <h4 style="color: {colors['text_primary']}; margin: 0 0 12px 0; font-size: 1.2em;">🔎 Analysis Summary:</h4>
+                <div style="color: #101010 !important; margin: 0; font-size: 1.0em; line-height: 1.5;">{analysis_html}</div>
             </div>
         </div>
         """

@@ -156,7 +156,6 @@ def create_dashboard_interface():
         # Header component
         header_component = gr.HTML()
 
-
         # Main content grid
         with gr.Row():
             with gr.Column(scale=2):
@@ -171,16 +170,11 @@ def create_dashboard_interface():
             )
                 
             with gr.Column(scale=1):
-                # Traffic summary
                 traffic_component = gr.HTML()
                 
             with gr.Column(scale=1):
-                # Debug Panel
-                with gr.Row():
-                    debug_panel_component = gr.HTML(visible=False)
-                # Environmental data
-                with gr.Row():
-                    environmental_component = gr.HTML()
+                environmental_component = gr.HTML()
+                debug_panel_component = gr.HTML(visible=False)
 
 
         # Alerts section
@@ -199,13 +193,13 @@ def create_dashboard_interface():
         
         # Manual refresh button and debug toggle
         with gr.Row(elem_id="footer-actions"):
-            with gr.Column(scale=2):
+            with gr.Column(scale=3):
                 pass  
             with gr.Column(scale=1):
                 with gr.Row():                    
                     refresh_btn = gr.Button("🔄 Refresh Data", variant="primary", elem_id="refresh-data-btn")
                 with gr.Row():
-                    debug_mode = gr.Checkbox(label="🐞 Show Debug Info", value=False, container=False)
+                    debug_mode = gr.Checkbox(label="🐞 Show Debug Info", value=False, container=False, visible=False)
 
         # Initial load of data
         interface.load(
