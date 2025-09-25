@@ -96,6 +96,7 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "is_daytime": traffic_response.weather_data.is_daytime,
                 "start_time": traffic_response.weather_data.start_time,
                 "end_time": traffic_response.weather_data.end_time,
+                "is_cached": traffic_response.weather_data.is_cached,
             },
             "vlm_analysis": {
                 "traffic_summary": traffic_response.vlm_analysis.traffic_summary,

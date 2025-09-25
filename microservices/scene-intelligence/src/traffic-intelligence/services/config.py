@@ -52,8 +52,8 @@ class ConfigService:
         """Get intersection coordinates (lat, lon)."""
         intersection = self.config.get("intersection", {})
         return (
-            intersection.get("latitude", 37.55336),
-            intersection.get("longitude", -122.29627)
+            intersection.get("latitude", 33.3091336),
+            intersection.get("longitude", -111.9353095)
         )
     
     def get_camera_topics(self) -> List[str]:

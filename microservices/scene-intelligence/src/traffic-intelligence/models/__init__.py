@@ -43,6 +43,7 @@ class WeatherData:
     is_daytime: Optional[bool] = None  # Whether it's daytime
     start_time: Optional[str] = None   # Start time of the forecast period
     end_time: Optional[str] = None     # End time of the forecast period
+    is_cached: bool = False          # Whether this data was served from cache
 
 
 @dataclass

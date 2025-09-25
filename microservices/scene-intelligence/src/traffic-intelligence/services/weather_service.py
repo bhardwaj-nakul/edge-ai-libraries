@@ -119,9 +119,9 @@ class WeatherService:
         """
         logger.info("Getting current weather data", force_refresh=force_refresh, has_cached=self._cached_weather is not None)
         
-        # Check cache first
         if not force_refresh and self._is_cache_valid():
             logger.debug("Returning cached weather data")
+            self._cached_weather.is_cached = True
             return self._cached_weather
         
         # Get intersection coordinates
