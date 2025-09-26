@@ -158,39 +158,47 @@ class WeatherService:
         Returns:
             WeatherData object or None if failed
         """
-        logger.info("Starting weather data fetch", lat=lat, lon=lon, api_base_url=self.api_base_url)
+        logger.debug("Starting weather data fetch", lat=lat, lon=lon, api_base_url=self.api_base_url)
         
         def _sync_fetch():
             """Synchronous fetch operation to run in thread pool."""
             try:
                 # Step 1: Get the gridpoint endpoint for the given lat/long
                 points_url = f"{self.api_base_url}/points/{lat},{lon}"
-                logger.info("Making request to points API", url=points_url)
+                logger.debug("Making request to points API", url=points_url)
                 
-                points_resp = requests.get(points_url, headers={"User-Agent": self.user_agent})
+                headers = {
+                    "Accept": "application/geo+json",
+                    "Cache-Control": "max-age=0",
+                    "Pragma": "no-cache",
+                    "Feature-Flags": "forecast_wind_speed",
+                    "Accept-Language": "en-US,en;q=0.9"
+                }
+                points_resp = requests.get(points_url, headers=headers)
                 points_resp.raise_for_status()
                 points_data = points_resp.json()
                 
-                logger.info("Points API response successful", status_code=points_resp.status_code)
+                logger.debug("Points API response successful", status_code=points_resp.status_code)
 
                 # Step 2: Get hourly forecast URL from the gridpoint response
                 forecast_url = points_data["properties"]["forecastHourly"]
-                logger.info("Making request to hourly forecast API", url=forecast_url)
+                logger.debug("Making request to hourly forecast API", url=forecast_url)
 
                 # Step 3: Fetch forecast data
-                forecast_resp = requests.get(forecast_url, headers={"User-Agent": self.user_agent})
+                forecast_resp = requests.get(forecast_url, headers=headers)
                 forecast_resp.raise_for_status()
                 forecast_data = forecast_resp.json()
                 
-                logger.info("Forecast API response successful", status_code=forecast_resp.status_code)
+                logger.debug("Forecast API response successful", status_code=forecast_resp.status_code)
 
                 # Step 4: Process the first forecast period (most current hour) and format according to specified structure
                 first_period = forecast_data["properties"]["periods"][0]
-                
+                logger.info("First forecast period data", period=first_period)
+
                 # Process weather data into WeatherData object
                 weather_data = self._process_weather_data(first_period)
-                
-                logger.info("Weather data fetched successfully", 
+
+                logger.debug("Weather data fetched successfully", 
                            conditions=weather_data.detailed_forecast,
                            temperature=weather_data.temperature,
                            precipitation=weather_data.is_precipitation)
