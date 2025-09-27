@@ -171,7 +171,7 @@ class WeatherService:
                     "Accept": "application/geo+json",
                     "Cache-Control": "max-age=0",
                     "Pragma": "no-cache",
-                    "Feature-Flags": "forecast_wind_speed",
+                    "Feature-Flags": f"forecast_wind_speed_{self._cache_timestamp or ''}",
                     "Accept-Language": "en-US,en;q=0.9"
                 }
                 points_resp = requests.get(points_url, headers=headers)
