@@ -3,6 +3,9 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# Combined Scene Intelligence Setup and Orchestration Script
+# This script combines setup and orchestration functionality for Scene Intelligence services
+
 # Color codes for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,84 +16,64 @@ NC='\033[0m' # No Color
 # Setting variables for directories used as volume mounts
 SOURCE="src"
 SECRETS_DIR="${SOURCE}/secrets"
+DOCKER_DIR="docker"
+COMPOSE_MAIN="${DOCKER_DIR}/compose.yaml"
 
-# Setting command usage and invalid arguments handling before the actual setup starts
-if [ "$#" -eq 0 ] || ([ "$#" -eq 1 ] && [ "$1" = "--help" ]); then
-    # If no valid argument is passed, print usage information
+# Function to show comprehensive help
+show_help() {
+    echo -e "${BLUE}Scene Intelligence Setup and Orchestration Script${NC}"
+    echo -e "${YELLOW}USAGE: ${GREEN}source setup.sh ${BLUE}[COMMAND] [OPTIONS]${NC}"
     echo -e "-----------------------------------------------------------------"
-    echo -e "${YELLOW}USAGE: ${GREEN}source setup.sh ${BLUE}[--setenv | --secrets | --videos | --build | --run | --stop | --clean | --status | --help | --setup]"
-    echo -e "${YELLOW}"
-    echo -e "  --setenv:     Set environment variables without starting any containers"
-    echo -e "  --secrets:    Generate secrets only"
-    echo -e "  --videos:     Download demo videos only"
-    echo -e "  --build:      Download videos and build Docker images"
-    echo -e "  --run:        Start the service and AI Route Planner"
-    echo -e "  --stop:       Stop the service and AI Route Planner"
-    echo -e "  --clean:      Clean up containers, volumes, and AI Route Planner logs"
-    echo -e "  --status:     Show service status including AI Route Planner"
-    echo -e "  --setup:      Full setup: secrets + videos + build + run (includes AI Route Planner)"
-    echo -e "  --help:       Show this help message${NC}"
-    echo -e "-----------------------------------------------------------------"
-    return 0
-
-elif [ "$#" -gt 1 ]; then
-    echo -e "${RED}ERROR: Too many arguments provided.${NC}"
-    echo -e "${YELLOW}Use --help for usage information${NC}"
-    return 1
-
-elif [ "$1" != "--help" ] && [ "$1" != "--setenv" ] && [ "$1" != "--secrets" ] && [ "$1" != "--videos" ] && [ "$1" != "--build" ] && [ "$1" != "--run" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] && [ "$1" != "--status" ] && [ "$1" != "--setup" ]; then
-    # Default case for unrecognized option
-    echo -e "${RED}Unknown option: $1 ${NC}"
-    echo -e "${YELLOW}Use --help for usage information${NC}"
-    return 1
-
-elif [ "$1" = "--stop" ]; then
-    # If --stop is passed, bring down the Docker containers and stop AI Route Planner
-    echo -e "${YELLOW}Stopping Scene Intelligence service... ${NC}"
-    
-    # Stop AI Route Planner first
-    stop_ai_route_planner
-    
-    # Stop Docker services
-    docker compose -f docker/compose.yaml down
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
-    echo -e "${GREEN}Scene Intelligence service stopped successfully. ${NC}"
-    return 0
-
-elif [ "$1" = "--clean" ]; then
-    # If --clean is passed, clean up containers and volumes
-    echo -e "${YELLOW}Cleaning up containers and volumes... ${NC}"
-    
-    # Stop AI Route Planner first
-    stop_ai_route_planner
-    
-    # Clean up log files
-    rm -f ai-route-planner.log
-    
-    docker compose -f docker/compose.yaml down --rmi all --volumes --remove-orphans
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
-    echo -e "${GREEN}Cleanup completed successfully. ${NC}"
-    return 0
-
-elif [ "$1" = "--status" ]; then
-    # Show service status
-    echo -e "${BLUE}Scene Intelligence Service Status:${NC}"
-    docker compose -f docker/compose.yaml ps
-    
     echo ""
-    echo -e "${BLUE}AI Route Planner Status:${NC}"
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ AI Route Planner is running on port ${AI_ROUTE_PLANNER_PORT}${NC}"
-        echo -e "  URL: ${YELLOW}http://localhost:${AI_ROUTE_PLANNER_PORT}${NC}"
-    else
-        echo -e "${RED}✗ AI Route Planner is not running${NC}"
+    echo -e "${BLUE}Available Commands:${NC}"
+    echo -e "  ${GREEN}setup${NC}         Complete setup process (secrets + videos + build + start)"
+    echo -e "  ${GREEN}build${NC}         Build all Docker container images"
+    echo -e "  ${GREEN}up${NC}            Start all containerized services"
+    echo -e "  ${GREEN}down${NC}          Stop all running services"
+    echo -e "  ${GREEN}restart${NC}       Stop and restart all services"
+    echo -e "  ${GREEN}status${NC}        Display status of all services and their URLs"
+    echo -e "  ${GREEN}logs${NC}          Show service logs (use with --follow to stream)"
+    echo -e "  ${GREEN}secrets${NC}       Generate secrets only"
+    echo -e "  ${GREEN}videos${NC}        Download demo videos only"
+    echo -e "  ${GREEN}clean${NC}         Stop services and remove containers, volumes, and images"
+    echo -e "  ${GREEN}help${NC}          Show this comprehensive help message"
+    echo ""
+    echo -e "${BLUE}Prerequisites:${NC}"
+    echo -e "  • Docker and Docker Compose must be installed"
+    echo -e "  • Sufficient disk space for container images and data"
+    echo ""
+    echo -e "${BLUE}Quick Start:${NC}"
+    echo -e "  ${YELLOW}source setup.sh setup${NC}    # Run this command for first-time setup"
+    echo -e "-----------------------------------------------------------------"
+}
+
+# Function to check if Docker Compose is available
+check_docker_compose() {
+    if ! command -v docker &> /dev/null; then
+        echo -e "${RED}Error: Docker is not installed or not in PATH${NC}"
+        return 1
     fi
-    return 0
+    
+    if ! docker compose version &> /dev/null; then
+        echo -e "${RED}Error: Docker Compose is not available${NC}"
+        return 1
+    fi
+}
+
+# Handle help and argument validation
+if [ "$#" -eq 0 ] || [ "$1" = "help" ]; then
+    show_help
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; else return 0; fi
 fi
+
+# Check for too many arguments
+if [ "$#" -gt 2 ]; then
+    echo -e "${RED}ERROR: Too many arguments provided.${NC}"
+    echo -e "${YELLOW}Use 'help' for usage information${NC}"
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
+fi
+
+
 
 # Export all environment variables
 # Base configuration
@@ -98,17 +81,23 @@ export HOST_IP=$(ip route get 1 | awk '{print $7}')  # Fetch the host IP
 # Add HOST_IP to no_proxy only if not already present
 [[ $no_proxy != *"${HOST_IP}"* ]] && export no_proxy="${no_proxy},${HOST_IP}"
 export TAG=${TAG:-latest}
-export REGISTRY_URL=${REGISTRY_URL:-amr-fm-registry.caas.intel.com/esh-user/}
-export PROJECT_NAME=${PROJECT_NAME:-egai/}
+export REGISTRY_URL=${REGISTRY_URL:-intel}
+export PROJECT_NAME=${PROJECT_NAME:-}
 
-# If REGISTRY_URL is set, ensure it ends with a trailing slash
-# Using parameter expansion to conditionally append '/' if not already present
-[[ -n "$REGISTRY_URL" ]] && REGISTRY_URL="${REGISTRY_URL%/}/"
-
-# If PROJECT_NAME is set, ensure it ends with a trailing slash
-[[ -n "$PROJECT_NAME" ]] && PROJECT_NAME="${PROJECT_NAME%/}/"
-
-export REGISTRY="${REGISTRY_URL}${PROJECT_NAME}"
+# Construct registry path properly to avoid double slashes
+if [[ -n "$REGISTRY_URL" && -n "$PROJECT_NAME" ]]; then
+    # Both are set, combine with single slash
+    export REGISTRY="${REGISTRY_URL%/}/${PROJECT_NAME%/}/"
+elif [[ -n "$REGISTRY_URL" ]]; then
+    # Only registry URL is set
+    export REGISTRY="${REGISTRY_URL%/}/"
+elif [[ -n "$PROJECT_NAME" ]]; then
+    # Only project name is set
+    export REGISTRY="${PROJECT_NAME%/}/"
+else
+    # Neither is set, use empty registry
+    export REGISTRY=""
+fi
 echo -e "${GREEN}Using registry: ${YELLOW}$REGISTRY ${NC}"
 
 # Scene Intelligence Service Configuration
@@ -166,6 +155,7 @@ export VLM_CONFIG_FILE=${VLM_CONFIG_FILE:-config/vlm_config.json}
 # AI Route Planner Configuration
 export AI_ROUTE_PLANNER_PORT=${AI_ROUTE_PLANNER_PORT:-7864}
 export AI_ROUTE_PLANNER_DIR=${AI_ROUTE_PLANNER_DIR:-ai-route-planner}
+export SI_API_BASE=${SI_API_BASE:-http://${HOST_IP}:${SCENE_INTELLIGENCE_PORT:-8081}}
 
 # VLM Prompts (optional environment variable overrides)
 # export VLM_SYSTEM_PROMPT="Custom system prompt..."
@@ -198,6 +188,7 @@ echo -e "  SCENESCAPE_PORT: ${YELLOW}$SCENESCAPE_PORT${NC}"
 echo -e "  SCENE_INTELLIGENCE_PORT: ${YELLOW}$SCENE_INTELLIGENCE_PORT${NC}"
 echo -e "  VLM_SERVICE_PORT: ${YELLOW}$VLM_SERVICE_PORT${NC}"
 echo -e "  AI_ROUTE_PLANNER_PORT: ${YELLOW}$AI_ROUTE_PLANNER_PORT${NC}"
+echo -e "  SI_API_BASE: ${YELLOW}$SI_API_BASE${NC}"
 echo -e "  VLM_MODEL_NAME: ${YELLOW}$VLM_MODEL_NAME${NC}"
 echo -e "  VLM_WORKERS: ${YELLOW}$VLM_WORKERS${NC}"
 echo -e "  VLM_DEVICE: ${YELLOW}$VLM_DEVICE${NC}"
@@ -267,11 +258,83 @@ download_videos() {
     ls -la "${VIDEO_DIR}"/*.ts 2>/dev/null | awk '{print "  " $9 " (" $5 " bytes)"}'
 }
 
+
+# Function to check prerequisites (secrets and videos)
+check_prerequisites() {
+    echo -e "${BLUE}==> Checking prerequisites...${NC}"
+    
+    # Check if secrets exist
+    if [ ! -f "${SECRETS_DIR}/browser.auth" ]; then
+        echo -e "${YELLOW}Secrets not found. Generating them...${NC}"
+        generate_secrets
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Failed to generate secrets${NC}"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}✓ Secrets found${NC}"
+    fi
+    
+    # Check if videos exist
+    local videos_dir="${SOURCE}/dlstreamer-pipeline-server/videos"
+    if [ ! -d "${videos_dir}" ] || [ -z "$(find "${videos_dir}" -name "*.ts" 2>/dev/null)" ]; then
+        echo -e "${YELLOW}Demo videos not found. Downloading them...${NC}"
+        download_videos
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Failed to download videos${NC}"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}✓ Demo videos found${NC}"
+    fi
+    
+    echo -e "${GREEN}Prerequisites check completed${NC}"
+    return 0
+}
+
+# Function to show service URLs
+show_service_urls() {
+    echo -e "${BLUE}Service URLs:${NC}"
+    echo -e "  • Scene Intelligence API: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}${NC}"
+    echo -e "  • AI Route Planner: ${YELLOW}http://localhost:${AI_ROUTE_PLANNER_PORT}${NC}"
+    echo -e "  • SceneScape Web: ${YELLOW}https://localhost:${SCENESCAPE_PORT}${NC}"
+    echo -e "  • VLM Service: ${YELLOW}http://localhost:${VLM_SERVICE_PORT}${NC}"
+    echo -e "  • MQTT Broker: ${YELLOW}localhost:${MQTT_PORT}${NC}"
+    echo -e "  • DL Streamer: ${YELLOW}http://localhost:${DLSTREAMER_PORT}${NC}"
+    echo ""
+    echo -e "${BLUE}Scene Intelligence API Endpoints:${NC}"
+    echo -e "  • Health Check: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/health${NC}"
+    echo -e "  • API Docs: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/docs${NC}"
+    echo -e "  • Traffic Summary: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/api/v1/traffic/directional/summary${NC}"
+    echo ""
+    echo -e "${BLUE}Management Commands:${NC}"
+    echo -e "  • View logs: ${YELLOW}source setup.sh logs --follow${NC}"
+    echo -e "  • Stop services: ${YELLOW}source setup.sh down${NC}"
+    echo -e "  • Check status: ${YELLOW}source setup.sh status${NC}"
+}
+
+# Function to start the service
+start_service() {
+    echo -e "${BLUE}==> Starting Scene Intelligence service...${NC}"
+    
+    # Start all services with Docker Compose
+    docker compose -f $COMPOSE_MAIN up -d
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Scene Intelligence service started successfully!${NC}"
+        echo ""
+        show_service_urls
+    else
+        echo -e "${RED}Failed to start Scene Intelligence service${NC}"
+        return 1
+    fi
+}
+
 # Function to build Docker images
 build_images() {
     echo -e "${BLUE}==> Building Docker images...${NC}"
     
-    docker compose -f docker/compose.yaml build
+    docker compose -f $COMPOSE_MAIN build
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Docker images built successfully${NC}"
     else
@@ -280,121 +343,43 @@ build_images() {
     fi
 }
 
-# Function to stop AI Route Planner
-stop_ai_route_planner() {
-    echo -e "${YELLOW}Stopping AI Route Planner...${NC}"
+# Function to do full setup
+full_setup() {
+    echo -e "${BLUE}==> Starting full setup...${NC}"
+    echo -e "${YELLOW}This will: check prerequisites, build images, and start all services${NC}"
     
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${YELLOW}Found AI Route Planner running on port ${AI_ROUTE_PLANNER_PORT}, stopping...${NC}"
-        fuser -k ${AI_ROUTE_PLANNER_PORT}/tcp 2>/dev/null
-        sleep 1
-        
-        # Verify it's stopped
-        if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-            echo -e "${RED}Failed to stop AI Route Planner${NC}"
-        else
-            echo -e "${GREEN}AI Route Planner stopped successfully${NC}"
-        fi
-    else
-        echo -e "${YELLOW}AI Route Planner is not running${NC}"
-    fi
-}
-
-# Function to start AI Route Planner
-start_ai_route_planner() {
-    echo -e "${BLUE}==> Starting AI Route Planner...${NC}"
-    
-    # Check if the AI Route Planner directory exists
-    if [ ! -d "${AI_ROUTE_PLANNER_DIR}" ]; then
-        echo -e "${YELLOW}AI Route Planner directory '${AI_ROUTE_PLANNER_DIR}' not found, skipping...${NC}"
-        return 0
-    fi
-    
-    # Check if uv is installed
-    if ! command -v uv &> /dev/null; then
-        echo -e "${YELLOW}uv is not installed. AI Route Planner requires uv to run.${NC}"
-        echo -e "${YELLOW}Please install uv first: https://docs.astral.sh/uv/getting-started/installation/${NC}"
-        return 0
-    fi
-    
-    # Check if port is already in use
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${YELLOW}Port ${AI_ROUTE_PLANNER_PORT} is already in use. Stopping existing process...${NC}"
-        fuser -k ${AI_ROUTE_PLANNER_PORT}/tcp 2>/dev/null
-        sleep 2
-    fi
-    
-    # Change to AI Route Planner directory and start the application in background
-    (
-        cd "${AI_ROUTE_PLANNER_DIR}"
-        echo -e "${YELLOW}Starting AI Route Planner with uv run main.py...${NC}"
-        nohup uv run main.py >| ../ai-route-planner.log 2>&1 &
-        echo -e "${GREEN}AI Route Planner started in background${NC}"
-        echo -e "${YELLOW}Logs available at: ai-route-planner.log${NC}"
-    )
-    
-    # Give it a moment to start
-    sleep 3
-    
-    # Check if it's running by checking the port
-    if lsof -i :${AI_ROUTE_PLANNER_PORT} > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ AI Route Planner is running on port ${AI_ROUTE_PLANNER_PORT}${NC}"
-    else
-        echo -e "${YELLOW}AI Route Planner may have failed to start. Check ai-route-planner.log for details.${NC}"
-    fi
-}
-
-# Function to start the service
-start_service() {
-    echo -e "${BLUE}==> Starting Scene Intelligence service...${NC}"
-    
-    # Check prerequisites
-    if [ ! -f "${SECRETS_DIR}/browser.auth" ]; then
-        echo -e "${YELLOW}Secrets not found. Generating them first...${NC}"
-        generate_secrets
-        if [ $? -ne 0 ]; then
-            return 1
-        fi
-    fi
-    
-    # Start the service
-    docker compose -f docker/compose.yaml up -d
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Scene Intelligence service started successfully!${NC}"
-        
-        # Start AI Route Planner
-        start_ai_route_planner
-        
-        echo ""
-        echo -e "${BLUE}Services:${NC}"
-        echo -e "  • Scene Intelligence API: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}${NC}"
-        echo -e "  • AI Route Planner: ${YELLOW}http://localhost:${AI_ROUTE_PLANNER_PORT}${NC}"
-        echo -e "  • SceneScape Web: ${YELLOW}https://localhost:${SCENESCAPE_PORT}${NC}"
-        echo -e "  • MQTT Broker: ${YELLOW}localhost:${MQTT_PORT}${NC}"
-        echo -e "  • DL Streamer: ${YELLOW}http://localhost:${DLSTREAMER_PORT}${NC}"
-        echo ""
-        echo -e "${BLUE}API Endpoints:${NC}"
-        echo -e "  • Health Check: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/health${NC}"
-        echo -e "  • Traffic Summary: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/api/v1/traffic/summary${NC}"
-        echo -e "  • Traffic Intersections: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}/api/v1/traffic/intersections${NC}"
-        echo ""
-        echo -e "${BLUE}To view logs:${NC}"
-        echo -e "  ${YELLOW}docker compose -f docker/compose.yaml logs -f${NC}"
-        echo ""
-        echo -e "${BLUE}To stop the service:${NC}"
-        echo -e "  ${YELLOW}source setup.sh --stop${NC}"
-    else
-        echo -e "${RED}Failed to start Scene Intelligence service${NC}"
+    # Check prerequisites first
+    check_prerequisites
+    if [ $? -ne 0 ]; then
         return 1
     fi
+    
+    # Build all images
+    build_images
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    
+    # Start all services
+    start_service
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    
+    echo -e "${GREEN}==> Full setup completed successfully!${NC}"
 }
 
-# Verify if required directories exist
-if [ "$1" != "--setenv" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] && [ "$1" != "--status" ]; then
+# Check Docker Compose availability and load environment variables
+check_docker_compose
+if [ $? -ne 0 ]; then
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
+fi
+
+# Verify if required directories exist (except for environment-only commands)
+if [ "$1" != "setenv" ] && [ "$1" != "down" ] && [ "$1" != "clean" ] && [ "$1" != "status" ] && [ "$1" != "logs" ]; then
     if [ ! -d "${SOURCE}" ]; then
         echo -e "${RED}Error: Source directory '${SOURCE}' not found${NC}"
-        return 1
+        if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
     fi
     
     if [ ! -d "${SECRETS_DIR}" ]; then
@@ -403,47 +388,101 @@ if [ "$1" != "--setenv" ] && [ "$1" != "--stop" ] && [ "$1" != "--clean" ] && [ 
     fi
 fi
 
-# if only base environment variables are to be set without deploying application, exit here
-if [ "$1" = "--setenv" ]; then
-    echo -e "${BLUE}Done setting up all environment variables. ${NC}"
-    return 0
+# Handle environment-only setup
+if [ "$1" = "setenv" ]; then
+    echo -e "${BLUE}Done setting up all environment variables.${NC}"
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; else return 0; fi
 fi
 
-# Main logic based on command
-case $1 in
-    --secrets)
+# Main logic based on command - handles both legacy (--option) and new (option) formats
+case "$1" in
+    "secrets")
         generate_secrets
         ;;
-    --videos)
+    "videos")
         download_videos
         ;;
-    --build)
-        download_videos
+    "build")
+        # Check prerequisites first
+        check_prerequisites
         if [ $? -eq 0 ]; then
             build_images
         fi
         ;;
-    --run)
-        start_service
-        ;;
-    --setup|*)
-        echo -e "${BLUE}==> Full Scene Intelligence Setup${NC}"
-        generate_secrets
+    "up")
+        # Check prerequisites first
+        check_prerequisites
         if [ $? -eq 0 ]; then
-            download_videos
-            if [ $? -eq 0 ]; then
-                build_images
-                if [ $? -eq 0 ]; then
-                    start_service
-                fi
-            fi
+            start_service
         fi
+        ;;
+    "down")
+        echo -e "${YELLOW}Stopping Scene Intelligence service...${NC}"
+        docker compose -f $COMPOSE_MAIN down
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}Scene Intelligence service stopped successfully.${NC}"
+        else
+            echo -e "${RED}Failed to stop services${NC}"
+            if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
+        fi
+        ;;
+    "clean")
+        echo -e "${YELLOW}Cleaning up containers, volumes, and images...${NC}"
+        docker compose -f $COMPOSE_MAIN down --rmi all --volumes --remove-orphans
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}Cleanup completed successfully.${NC}"
+        else
+            echo -e "${RED}Cleanup failed${NC}"
+            if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
+        fi
+        ;;
+    "status")
+        echo -e "${BLUE}Scene Intelligence Service Status:${NC}"
+        docker compose -f $COMPOSE_MAIN ps
+        echo ""
+        echo -e "${BLUE}Service URLs:${NC}"
+        echo -e "  • Scene Intelligence API: ${YELLOW}http://localhost:${SCENE_INTELLIGENCE_PORT}${NC}"
+        echo -e "  • AI Route Planner: ${YELLOW}http://localhost:${AI_ROUTE_PLANNER_PORT}${NC}"
+        echo -e "  • SceneScape Web: ${YELLOW}https://localhost:${SCENESCAPE_PORT}${NC}"
+        echo -e "  • VLM Service: ${YELLOW}http://localhost:${VLM_SERVICE_PORT}${NC}"
+        echo -e "  • DL Streamer: ${YELLOW}http://localhost:${DLSTREAMER_PORT}${NC}"
+        ;;
+    "logs")
+        echo -e "${BLUE}==> Service Logs${NC}"
+        local follow_flag=""
+        if [ "$2" = "--follow" ]; then
+            follow_flag="-f"
+        fi
+        docker compose -f $COMPOSE_MAIN logs $follow_flag
+        ;;
+    "restart")
+        echo -e "${BLUE}==> Restarting services...${NC}"
+        docker compose -f $COMPOSE_MAIN down
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}Services stopped successfully${NC}"
+            # Check prerequisites first
+            check_prerequisites
+            if [ $? -eq 0 ]; then
+                start_service
+            fi
+        else
+            echo -e "${RED}Failed to stop services${NC}"
+            if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
+        fi
+        ;;
+    "setup")
+        full_setup
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo -e "${YELLOW}Use 'help' for usage information${NC}"
+        if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
         ;;
 esac
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Done!${NC}"
 else
-    echo -e "${RED}Setup failed. Check the logs above for details.${NC}"
-    return 1
+    echo -e "${RED}Operation failed. Check the logs above for details.${NC}"
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 1; else return 1; fi
 fi

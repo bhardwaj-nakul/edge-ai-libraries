@@ -18,7 +18,7 @@ This guide assumes basic familiarity with Docker commands and terminal usage. If
 
 ## Quick Start with Setup Script
 
-The Scene Intelligence microservice includes an automated setup script that handles environment configuration, secrets generation, building, and deployment. This is the **recommended approach** for getting started.
+The Scene Intelligence microservice includes a unified setup script (`setup.sh`) that combines both setup and orchestration functionality. It handles environment configuration, secrets generation, building, deployment, and ongoing service management. This is the **recommended approach** for getting started and managing the services.
 
 ### 1. Clone the Repository
 
@@ -33,7 +33,7 @@ The setup script provides several options. For a complete setup (recommended for
 
 ```bash
 # Complete setup: generates secrets, builds images, and starts all services
-source setup.sh --setup
+source setup.sh setup
 ```
 
 This single command will:
@@ -50,36 +50,44 @@ For more granular control, the setup script provides individual commands:
 
 ```bash
 # Set environment variables only
-source setup.sh --setenv
+source setup.sh setenv
 
 # Generate secrets only
-source setup.sh --secrets
+source setup.sh secrets
 
 # Download demo videos only
-source setup.sh --videos
+source setup.sh videos
 
 # Download videos and build images
-source setup.sh --build
+source setup.sh build
 
 # Start services only (after setup)
-source setup.sh --run
+source setup.sh up
 
 # Stop services
-source setup.sh --stop
+source setup.sh down
+
+# Restart services
+source setup.sh restart
 
 # Check service status
-source setup.sh --status
+source setup.sh status
+
+# View service logs
+source setup.sh logs       # Add --follow to stream logs
 
 # Clean up everything
-source setup.sh --clean
+source setup.sh clean
 ```
+
+> **Note**: The setup script combines both setup and orchestration functionality in a single unified interface.
 
 ### 4. Verify the Stack
 
 After running the setup, check that all services are running:
 
 ```bash
-source setup.sh --status
+source setup.sh status
 ```
 
 Check Scene Intelligence health:
@@ -345,7 +353,7 @@ The Scene Intelligence stack provides a complete traffic analysis solution:
 **Use the setup script to check status**:
 
 ```bash
-source setup.sh --status
+source setup.sh status
 ```
 
 **Check logs**:
@@ -358,8 +366,8 @@ docker compose  logs
 **Restart services**:
 
 ```bash
-source setup.sh --stop
-source setup.sh --run
+source setup.sh down
+source setup.sh up
 ```
 
 **Common issues**:

@@ -323,7 +323,7 @@ services:
 
   # VLM OpenVINO Serving Service
   vlm-openvino-serving:
-    image: ${REGISTRY:-}vlm-openvino-serving:${TAG:-latest}
+    image: ${REGISTRY:-}vlm-openvino-serving:1.2.1
     container_name: scene-intelligence-vlm-serving
     ports:
       - "${VLM_SERVICE_PORT:-9764}:8000"
@@ -364,6 +364,44 @@ services:
     volumes:
       - ov-models:/home/appuser/.cache/huggingface
       - ov-models:/app/ov-model
+
+  # AI Route Planner Service
+  ai-route-planner:
+    image: ${REGISTRY:-}ai-route-planner:${TAG:-latest}
+    container_name: scene-intelligence-ai-route-planner
+    build:
+      context: ../ai-route-planner
+      dockerfile: Dockerfile
+      args:
+        USER_ID: ${USER_ID:-1000}
+        USER_GROUP_ID: ${USER_GROUP_ID:-1000}
+    ports:
+      - "${AI_ROUTE_PLANNER_PORT:-7864}:7860"
+    environment:
+      # Proxy settings
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - no_proxy=${no_proxy_env},.scenescape.intel.com,${HOST_IP}
+      - NO_PROXY=${no_proxy_env},.scenescape.intel.com,${HOST_IP}
+      - HTTP_PROXY=${http_proxy}
+      - HTTPS_PROXY=${https_proxy}
+      # Application settings
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+      - PYTHONPATH=/app
+      # Scene Intelligence API Configuration
+      - SI_API_BASE=http://${HOST_IP}:${SCENE_INTELLIGENCE_PORT:-8082}
+    networks:
+      - scenescape
+    healthcheck:
+      test: ["CMD", "python", "health_check.py", "7860"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      - ntpserver
 
 volumes:
   dlstreamer-pipeline-server-pipeline-root:

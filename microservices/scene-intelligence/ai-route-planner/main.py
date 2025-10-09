@@ -655,12 +655,18 @@ def create_gradio_interface() -> gr.Blocks:
 
 
 if __name__ == "__main__":
+    import os
+    
+    # Get configuration from environment variables
+    server_name = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
+    server_port = int(os.getenv("GRADIO_SERVER_PORT", "7860"))  # Changed default to match Dockerfile
+    
     server_config = {
-        "server_name": "0.0.0.0",
-        "server_port": 7864,
+        "server_name": server_name,
+        "server_port": server_port,
         "share": False,
         "pwa": True,  # Enable Progressive Web App features
     }
     app = create_gradio_interface()
-    logger.info("Starting Route Planner application...")
+    logger.info(f"Starting Route Planner application on {server_name}:{server_port}...")
     app.launch(**server_config)
