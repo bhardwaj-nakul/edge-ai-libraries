@@ -95,6 +95,12 @@ export MQTT_PORT=${MQTT_PORT:-1883}
 export SCENESCAPE_PORT=${SCENESCAPE_PORT:-443}
 export DLSTREAMER_PORT=${DLSTREAMER_PORT:-8555}
 
+# Traffic Intelligence Service Configuration
+export TRAFFIC_INTELLIGENCE_PORT=${TRAFFIC_INTELLIGENCE_PORT:-8081}
+export TRAFFIC_INTELLIGENCE_UI_PORT=${TRAFFIC_INTELLIGENCE_UI_PORT:-7860}
+export TRAFFIC_INTELLIGENCE_HOST=${TRAFFIC_INTELLIGENCE_HOST:-0.0.0.0}
+export REFRESH_INTERVAL=${REFRESH_INTERVAL:-15}
+
 # User and group IDs
 export USER_ID=$(id -u)
 export USER_GROUP_ID=$(id -g)
@@ -169,6 +175,8 @@ echo -e "  TAG: ${YELLOW}$TAG${NC}"
 echo -e "  REGISTRY: ${YELLOW}$REGISTRY${NC}"
 echo -e "  MQTT_PORT: ${YELLOW}$MQTT_PORT${NC}"
 echo -e "  SCENESCAPE_PORT: ${YELLOW}$SCENESCAPE_PORT${NC}"
+echo -e "  TRAFFIC_INTELLIGENCE_PORT: ${YELLOW}$TRAFFIC_INTELLIGENCE_PORT${NC}"
+echo -e "  TRAFFIC_INTELLIGENCE_UI_PORT: ${YELLOW}$TRAFFIC_INTELLIGENCE_UI_PORT${NC}"
 echo -e "  VLM_SERVICE_PORT: ${YELLOW}$VLM_SERVICE_PORT${NC}"
 echo -e "  VLM_MODEL_NAME: ${YELLOW}$VLM_MODEL_NAME${NC}"
 echo -e "  VLM_WORKERS: ${YELLOW}$VLM_WORKERS${NC}"
@@ -277,6 +285,9 @@ start_service() {
         echo -e "  • SceneScape Web: ${YELLOW}https://localhost:${SCENESCAPE_PORT}${NC}"
         echo -e "  • MQTT Broker: ${YELLOW}localhost:${MQTT_PORT}${NC}"
         echo -e "  • DL Streamer: ${YELLOW}http://localhost:${DLSTREAMER_PORT}${NC}"
+        echo -e "  • Traffic Intelligence API: ${YELLOW}http://localhost:${TRAFFIC_INTELLIGENCE_PORT}${NC}"
+        echo -e "  • Traffic Intelligence UI: ${YELLOW}http://localhost:${TRAFFIC_INTELLIGENCE_UI_PORT}${NC}"
+        echo -e "  • VLM Service: ${YELLOW}http://localhost:${VLM_SERVICE_PORT}${NC}"
         echo ""
         echo -e "${BLUE}To view logs:${NC}"
         echo -e "  ${YELLOW}docker compose -f docker/compose.yaml logs -f${NC}"

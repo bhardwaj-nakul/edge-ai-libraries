@@ -112,13 +112,15 @@ class MQTTService:
                 try:
                     import ssl
                     
-                    # Resolve certificate paths relative to the script location
+                    # Resolve certificate paths relative to the app root
+                    # Get the app root directory (parent of services directory)
                     script_dir = os.path.dirname(os.path.abspath(__file__))
+                    app_root = os.path.dirname(script_dir)  # Go up one level from services/
                     
                     def resolve_cert_path(cert_path):
                         if os.path.isabs(cert_path):
                             return cert_path
-                        return os.path.join(script_dir, cert_path)
+                        return os.path.join(app_root, cert_path)
                     
                     ca_cert_full_path = resolve_cert_path(self.ca_cert_path)
                     

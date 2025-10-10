@@ -261,7 +261,7 @@ services:
 
   # VLM OpenVINO Serving Service
   vlm-openvino-serving:
-    image: vlm-openvino-serving:order-vlm
+    image: intel/vlm-openvino-serving:1.2.1
     container_name: scene-intelligence-vlm-serving
     ports:
       - "${VLM_SERVICE_PORT:-9764}:8000"
@@ -303,6 +303,74 @@ services:
       - ov-models:/root/.cache/huggingface
       - ov-models:/app/ov-model
 
+  # Traffic Intelligence Service
+  traffic-intelligence:
+    build:
+      context: ../src/traffic-intelligence
+      dockerfile: Dockerfile
+    image: ${REGISTRY:-}traffic-intelligence:${TAG:-latest}
+    container_name: scene-intelligence-traffic-intelligence
+    ports:
+      - "${TRAFFIC_INTELLIGENCE_PORT:-8081}:8081"
+      - "${TRAFFIC_INTELLIGENCE_UI_PORT:-7860}:7860"
+    depends_on:
+      broker:
+        condition: service_started
+      vlm-openvino-serving:
+        condition: service_healthy
+    environment:
+      # Service configuration
+      TRAFFIC_INTELLIGENCE_HOST: 0.0.0.0
+      TRAFFIC_INTELLIGENCE_PORT: 8081
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # UI configuration
+      APP_PORT: 7860
+      APP_HOST: 0.0.0.0
+      USE_API: "true"
+      API_URL: http://localhost:8081/api/v1/traffic/current
+      REFRESH_INTERVAL: ${REFRESH_INTERVAL:-15}
+      
+      # Proxy settings
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      no_proxy: ${no_proxy_env},.scenescape.intel.com,${HOST_IP},broker.scenescape.intel.com,vlm-openvino-serving
+      NO_PROXY: ${no_proxy_env},.scenescape.intel.com,${HOST_IP},broker.scenescape.intel.com,vlm-openvino-serving
+      HTTP_PROXY: ${http_proxy}
+      HTTPS_PROXY: ${https_proxy}
+      
+      # MQTT configuration (connects to broker service)
+      MQTT_HOST: broker.scenescape.intel.com
+      MQTT_PORT: 1883
+      
+      # VLM configuration (connects to vlm-openvino-serving service)
+      VLM_BASE_URL: http://vlm-openvino-serving:8000
+      VLM_MODEL: ${VLM_MODEL_NAME:-Qwen/Qwen2.5-VL-3B-Instruct}
+      VLM_TIMEOUT_SECONDS: ${VLM_TIMEOUT_SECONDS:-300}
+      VLM_MAX_COMPLETION_TOKENS: ${VLM_MAX_COMPLETION_TOKENS:-1500}
+      VLM_TEMPERATURE: ${VLM_TEMPERATURE:-0.1}
+      VLM_TOP_P: ${VLM_TOP_P:-0.1}
+      
+      # Traffic analysis configuration
+      HIGH_DENSITY_THRESHOLD: ${HIGH_DENSITY_THRESHOLD:-5.0}
+      TRAFFIC_BUFFER_DURATION: ${TRAFFIC_BUFFER_DURATION:-60}
+      DATA_RETENTION_HOURS: ${DATA_RETENTION_HOURS:-24}
+    networks:
+      - scenescape
+    volumes:
+      - ../src/traffic-intelligence/config:/app/config:ro
+      - traffic-intelligence-data:/app/data
+    secrets:
+      - source: root-cert
+        target: /app/secrets/certs/scenescape-ca.pem
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: ${HEALTH_CHECK_START_PERIOD:-10s}
+    restart: unless-stopped
+
 volumes:
   dlstreamer-pipeline-server-pipeline-root:
     driver: local
@@ -318,3 +386,4 @@ volumes:
   pgserver-migrations:
   pgserver-media:
   ov-models:
+  traffic-intelligence-data:

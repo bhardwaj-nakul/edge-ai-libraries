@@ -44,26 +44,34 @@ This single command will:
 - Build Docker images
 - Start all services in the Scene Intelligence stack
 
-Once the setup is done, you need to run the traffic intelligence service for API access.
+The setup command starts all services including the containerized Traffic Intelligence service.
+
+### 3. Verify Services
+
+Check that all services are running:
 
 ```bash
+# Check container status
+docker ps
 
-cd scene-intelligence/src/traffic-intelligence
-./dev.sh run
+# Verify Traffic Intelligence API
+curl -s http://localhost:8081/health
+
+# Verify Traffic Intelligence UI
+curl -s http://localhost:7860/
+
+# Check Scene Intelligence (if deployed separately)
+curl -s http://localhost:8082/health
 ```
 
-Next, open another terminal and run the following command to run the UI.
+### 4. Access Services
 
-```bash
-./dev.sh ui
+The stack provides multiple interfaces:
 
-```
-
-Check Scene Intelligence health:
-
-```bash
-curl -s -X GET http://localhost:8082/health
-```
+- **Traffic Intelligence API**: `http://localhost:8081`
+- **Traffic Intelligence UI**: `http://localhost:7860`
+- **SceneScape Web**: `https://localhost:443`
+- **API Documentation**: `http://localhost:8081/docs` (Swagger UI)
 
 ## Manual Setup (Advanced Users)
 
@@ -99,104 +107,64 @@ export VLM_COOLDOWN_MINUTES=1
 export VLM_TIMEOUT_SECONDS=10
 ```
 
-### Manual Docker Compose Deployment
-
-```bash
-# 1. Generate secrets manually
-./src/secrets/generate_secrets.sh
-
-# 2. Start services
-docker compose -f docker/compose.yaml up -d
-```
-
 ## Services Included
 
-The Scene Intelligence stack includes these services:
+The Scene Intelligence stack includes these containerized services:
 
 - **MQTT Broker** (Eclipse Mosquitto) - Message broker for traffic data
 - **DL Streamer Pipeline Server** - Video analytics and AI inference
 - **SceneScape Database** - Configuration and metadata storage
 - **SceneScape Web Server** - Management interface
 - **SceneScape Controller** - Orchestration service
-- **Scene Intelligence API** - Main traffic analysis service
 - **VLM OpenVINO Serving** - Vision Language Model inference
+- **Traffic Intelligence** - Real-time traffic analysis with dual interface (API + UI)
 
 ## Testing the API
 
-### 1. Get Service Status
+### 1. Traffic Intelligence Service
+
+The Traffic Intelligence service provides real-time intersection monitoring:
 
 ```bash
-curl -s -X GET http://localhost:8082/health
+# Check service health
+curl -s http://localhost:8081/health
+
+# Get current traffic data
+curl -s http://localhost:8081/api/v1/traffic/current
+
+# Get weather data
+curl -s http://localhost:8081/api/v1/weather/current
+
 ```
 
-Expected response:
+### 2. Access UI Dashboard
 
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-08-19T10:30:00.000000+00:00",
-  "service": "scene-intelligence"
-}
-```
+Open the Traffic Intelligence UI in your browser:
 
-### 2. Get Available Intersections
+Visit http://localhost:7860 in your browser
 
-First, get the list of available intersection IDs:
 
-```bash
-curl -s -X GET "http://localhost:8082/api/v1/intersections"
-```
+The UI provides:
+- Real-time traffic visualization
+- Camera image display
+- Weather information
+- VLM analysis results
+- Traffic alerts and recommendations
 
-This will return the actual intersection UUIDs you need to use in subsequent API calls.
 
-### 3. Get Traffic Summary
+## Service Ports
 
-```bash
-curl -s -X GET "http://localhost:8082/api/v1/traffic/directional/summary"
-```
+The complete stack exposes several services on different ports:
 
-### 4. Get Intersection Traffic
-
-Use an actual intersection ID from the `/intersections` endpoint:
-
-```bash
-# First get intersection IDs
-INTERSECTION_ID=$(curl -s -X GET "http://localhost:8082/api/v1/intersections" | jq -r '.intersections[0].intersection_id')
-
-# Then get traffic data for that intersection
-curl -s -X GET "http://localhost:8082/api/v1/traffic/directional/intersection/$INTERSECTION_ID"
-```
-
-Or use a specific intersection UUID directly:
-
-```bash
-curl -s -X GET "http://localhost:8082/api/v1/traffic/directional/intersection/3d7b9e1f-c4a6-4f8e-b2d5-6a8c0e2f4b7d"
-```
-
-### 5. View Service Configuration
-
-```bash
-curl -s -X GET http://localhost:8082/api/v1/config
-```
-
-### 6. Check VLM Integration
-
-```bash
-# Get current VLM threshold
-curl -s -X GET http://localhost:8082/api/v1/config/vlm/threshold
-
-# Update VLM threshold (optional)
-curl -s -X PUT http://localhost:8082/api/v1/config/vlm/threshold \
-  -H "Content-Type: application/json" \
-  -d '{"threshold": 6.0}'
-```
-
-### 7. Monitor Camera Images
-
-```bash
-curl -s -X GET http://localhost:8082/api/v1/cameras/images
-curl -s -X GET http://localhost:8082/api/v1/cameras/stats
-```
+| Service | Port | Description |
+|---------|------|-------------|
+| Traffic Intelligence API | 8081 | Real-time traffic analysis REST API |
+| Traffic Intelligence UI | 7860 | Interactive Gradio dashboard |
+| Scene Intelligence API | 8082 | Scene analytics service (optional) |
+| VLM OpenVINO Serving | 9764 | Vision Language Model service |
+| SceneScape Web | 443 | Management web interface (HTTPS) |
+| MQTT Broker | 1883 | Message broker |
+| DL Streamer | 8555 | Video analytics pipeline |
 
 ## Service Ports
 
@@ -212,188 +180,159 @@ The complete stack exposes several services on different ports:
 
 ## Configuration Files
 
-The Scene Intelligence stack uses several configuration files located in the `config/` directory:
+The Scene Intelligence stack uses several configuration files located in the `config/` and `src/traffic-intelligence/config/` directories:
 
-### Scene Intelligence Configuration
+### Traffic Intelligence Configuration
 
-The main service configuration is located at `config/scene_intelligence_config.json`:
-
-```json
-{
-  "service": {
-    "name": "scene-intelligence",
-    "port": 8080,
-    "host": "0.0.0.0"
-  },
-  "intersections": {
-    "3d7b9e1f-c4a6-4f8e-b2d5-6a8c0e2f4b7d": {
-      "name": "Intersection-1",
-      "latitude": 40.7516,
-      "longitude": -73.9944
-    },
-    "f8e9c1a2-b3d4-4e5f-9a8b-7c6d5e4f3g2h": {
-      "name": "Intersection-2", 
-      "latitude": 40.7580,
-      "longitude": -73.9855
-    }
-  },
-  "regions": {
-    "intersection_regions": {
-      "3d7b9e1f-c4a6-4f8e-b2d5-6a8c0e2f4b7d": {
-        "north": ["bd0b91b8-ccfb-4413-acb9-91d7ad0abce0"],
-        "south": ["8d2edd2f-667d-41c2-9bc0-fadb27906452"],
-        "east": ["453cb3e7-c819-46eb-81c6-d772eec9d2a8"],
-        "west": ["fe6d755b-86ca-4d57-9ca3-51d5dda19801"]
-      }
-    }
-  }
-}
-```
-
-### VLM Configuration
-
-VLM service configuration is at `config/vlm_config.json`:
+The Traffic Intelligence service configuration is at `src/traffic-intelligence/config/traffic_intelligence.json`:
 
 ```json
 {
-  "vlm_service": {
+  "intersection": {
+    "id": "97781c36-b53a-4749-87e6-8815da99bac7",
+    "name": "Intersection-Demo",
+    "latitude": 33.3091336,
+    "longitude": -111.9353095
+  },
+  "mqtt": {
+    "host": "broker.scenescape.intel.com",
+    "port": 1883,
+    "use_tls": true,
+    "ca_cert_path": "secrets/certs/scenescape-ca.pem",
+    "camera_topics": [
+      "scenescape/data/camera/camera1",
+      "scenescape/data/camera/camera2",
+      "scenescape/data/camera/camera3",
+      "scenescape/data/camera/camera4"
+    ]
+  },
+  "vlm": {
     "base_url": "http://vlm-openvino-serving:8000",
     "model": "Qwen/Qwen2.5-VL-3B-Instruct",
-    "timeout_seconds": 10,
-    "vlm_workers": 4
+    "timeout_seconds": 300
   },
-  "traffic_analysis": {
-    "high_density_threshold": 5.0,
-    "minimum_duration_for_consistently_high_traffic_seconds": 2,
-    "vlm_cooldown_minutes": 1
-  },
-  "vlm_model_parameters": {
-    "max_completion_tokens": 500,
-    "temperature": 0.3,
-    "top_p": 0.9
-  },
-  "prompts": {
-    "system_prompt": "You are an AI traffic analyst specializing in intersection traffic analysis.",
-    "traffic_analysis_prompt": "Analyze the provided intersection images and explain the high traffic density situation."
+  "traffic": {
+    "high_density_threshold": 10,
+    "analysis_window_seconds": 30,
+    "vlm_trigger_duration_seconds": 15
   }
 }
 ```
 
-### DL Streamer Configuration
-
-Pipeline configuration is at `src/dlstreamer-pipeline-server/config.json` for video analytics setup.
+Note: Configuration values can be overridden by environment variables set in `setup.sh`.
 
 ## Next Steps
 
-- **Traffic Analysis Deep Dive**: See [Traffic Data Analysis Workflow](./traffic-data-analysis-workflow.md) for comprehensive details on VLM integration, trigger conditions, windowed analysis, and configuration parameters.
-- **Advanced Configuration**: For detailed environment variable options, see [Environment Variables](./environment-variables.md).
-- **API Documentation**: Explore the full [API Reference](./api-reference.md) for detailed endpoint documentation.
-- **SceneScape Management**: Access the web interface at `https://localhost:443` for visual management.
-- **Video Analytics**: Configure video streams and AI models through DL Streamer integration.
-- **Build from Source**: See [How to Build from Source](./how-to-build-from-source.md) for development and custom builds.
+- **Traffic Intelligence**: Access the UI dashboard at `http://localhost:7860` for interactive traffic monitoring
+- **API Documentation**: Explore the Traffic Intelligence API at `http://localhost:8081/docs` (Swagger UI)
+- **Advanced Configuration**: For detailed environment variable options, see [Environment Variables](./environment-variables.md)
+- **Traffic Analysis Deep Dive**: See [Traffic Data Analysis Workflow](./traffic-data-analysis-workflow.md) for VLM integration details
+- **SceneScape Management**: Access the web interface at `https://localhost:443` for visual management
+- **Video Analytics**: Configure video streams through DL Streamer integration
+- **Build from Source**: See [How to Build from Source](./how-to-build-from-source.md) for development and custom builds
 
-## Stack Architecture
 
-The Scene Intelligence stack provides a complete traffic analysis solution:
+### Key Integration Points
 
-```
-
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Video Input   │───▶│  DL Streamer     │───▶│  MQTT Broker    │
-│   (Cameras)     │    │  Pipeline Server │    │  (Mosquitto)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   SceneScape    │◀───│  Scene           │◀───│  Scene          │
-│   Web Interface │    │  Controller      │    │  Intelligence   │
-└─────────────────┘    └──────────────────┘    │  API Service    │
-                                                └─────────────────┘
-                                                         │
-                                                ┌─────────────────┐
-                                                │  VLM OpenVINO   │
-                                                │  Serving        │
-                                                └─────────────────┘
-```
+- **MQTT Communication**: All services communicate via the shared MQTT broker
+- **Docker Network**: Services discover each other via Docker service names
+- **Shared Secrets**: TLS certificates and auth files mounted from `src/secrets/`
+- **Persistent Storage**: Traffic data stored in Docker volume `traffic-intelligence-data`
+- **Health Monitoring**: All services include health check endpoints
 
 ## Troubleshooting
 
 ### Stack Not Starting
 
-**Use the setup script to check status**:
+Check status and logs:
 
 ```bash
-source setup.sh --status
-```
+# View container status
+docker ps -a
 
-**Check logs**:
+# Check specific service logs
+docker compose -f docker/compose.yaml logs traffic-intelligence
+docker compose -f docker/compose.yaml logs vlm-openvino-serving
+docker compose -f docker/compose.yaml logs broker
 
-```bash
-cd docker
-docker compose  logs
-```
-
-**Restart services**:
-
-```bash
+# Restart services
 source setup.sh --stop
 source setup.sh --run
 ```
 
-**Common issues**:
-
+Common issues:
 - Missing secrets/certificates in `src/secrets/` directory
-- Port conflicts (8082, 9764, 443, 1883, 8555)
+- Port conflicts (check ports 8081, 7860, 9764, 443, 1883, 8555)
 - Insufficient system resources for VLM service
 - Proxy configuration issues
 
-### Service Health Issues
+### Traffic Intelligence Service Issues
 
-**Check individual service health**:
+Check service health:
 
 ```bash
-# Scene Intelligence API
-curl -s -X GET http://localhost:8082/health
+# Verify API is responding
+curl http://localhost:8081/health
 
-# VLM Service
-curl -s -X GET http://localhost:9764/health
+# Check UI accessibility
+curl http://localhost:7860/
 
-# Check service logs
-docker compose -f docker/compose.yaml logs scene-intelligence
-docker compose -f docker/compose.yaml logs vlm-openvino-serving
+# View detailed logs
+docker logs -f scene-intelligence-traffic-intelligence
+
+# Check container is running
+docker ps | grep traffic-intelligence
 ```
 
-### API Connection Issues
+### Service Health Issues
 
-**Verify network connectivity**:
+Verify individual service health:
 
 ```bash
-# Check if services are accessible
-docker compose -f docker/compose.yaml exec scene-intelligence curl -s http://vlm-openvino-serving:8000/health
-docker compose -f docker/compose.yaml  exec scene-intelligence curl -s http://broker.scenescape.intel.com:1883
+# Traffic Intelligence
+curl http://localhost:8081/health
 
-# Check service configuration
-curl -s -X GET http://localhost:8082/api/v1/config
-curl -s -X GET http://localhost:8082/api/v1/status
+# VLM Service
+curl http://localhost:9764/health
+
+```
+
+### MQTT Connection Issues
+
+Verify MQTT broker connectivity:
+
+```bash
+# Check broker is running
+docker ps | grep broker
+
+# Verify certificate is mounted
+docker exec scene-intelligence-traffic-intelligence ls -la /app/secrets/certs/
+
+# Check network connectivity
+docker compose -f docker/compose.yaml exec traffic-intelligence ping broker.scenescape.intel.com
 ```
 
 ### VLM Analysis Not Working
 
-**Debug VLM integration**:
+Debug VLM integration:
 
 ```bash
-# Check VLM threshold configuration
-curl -s -X GET http://localhost:8082/api/v1/config/vlm/threshold
+# Check VLM service health
+curl http://localhost:9764/health
 
-# Monitor image requests
-curl -s -X GET http://localhost:8082/api/v1/debug/image-requests
+# Verify traffic threshold configuration
+curl http://localhost:8081/api/v1/config
 
-# Check camera images availability
-curl -s -X GET http://localhost:8082/api/v1/cameras/stats
+# Check camera data availability
+docker logs scene-intelligence-traffic-intelligence | grep "camera"
+
+# Monitor VLM requests
+docker logs scene-intelligence-traffic-intelligence | grep -i vlm
 ```
 
 ### Performance Issues
 
-**Resource monitoring**:
+Monitor resource usage:
 
 ```bash
 # Check container resource usage
@@ -406,13 +345,13 @@ docker compose -f docker/compose.yaml up -d vlm-openvino-serving
 
 ### Configuration Issues
 
-**Validate configuration files**:
+Validate configuration files:
 
 ```bash
 # Check JSON syntax
+cat src/traffic-intelligence/config/traffic_intelligence.json | jq .
 cat config/scene_intelligence_config.json | jq .
-cat config/vlm_config.json | jq .
 
 # Verify mounted configuration
-docker compose -f docker/compose.yaml exec scene-intelligence ls -la /app/config/
+docker compose -f docker/compose.yaml exec traffic-intelligence ls -la /app/config/
 ```
