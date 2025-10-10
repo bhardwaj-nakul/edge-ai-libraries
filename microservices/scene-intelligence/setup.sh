@@ -75,19 +75,24 @@ fi
 # Base configuration
 export HOST_IP=$(ip route get 1 | awk '{print $7}')  # Fetch the host IP
 # Add HOST_IP to no_proxy only if not already present
-[[ $no_proxy != *"${HOST_IP}"* ]] && export no_proxy="${no_proxy},${HOST_IP}"
 export TAG=${TAG:-latest}
-export REGISTRY_URL=${REGISTRY_URL:-amr-fm-registry.caas.intel.com/esh-user/}
-export PROJECT_NAME=${PROJECT_NAME:-egai/}
+export REGISTRY_URL=${REGISTRY_URL:-intel}
+export PROJECT_NAME=${PROJECT_NAME:-}
 
-# If REGISTRY_URL is set, ensure it ends with a trailing slash
-# Using parameter expansion to conditionally append '/' if not already present
-[[ -n "$REGISTRY_URL" ]] && REGISTRY_URL="${REGISTRY_URL%/}/"
-
-# If PROJECT_NAME is set, ensure it ends with a trailing slash
-[[ -n "$PROJECT_NAME" ]] && PROJECT_NAME="${PROJECT_NAME%/}/"
-
-export REGISTRY="${REGISTRY_URL}${PROJECT_NAME}"
+# Construct registry path properly to avoid double slashes
+if [[ -n "$REGISTRY_URL" && -n "$PROJECT_NAME" ]]; then
+    # Both are set, combine with single slash
+    export REGISTRY="${REGISTRY_URL%/}/${PROJECT_NAME%/}/"
+elif [[ -n "$REGISTRY_URL" ]]; then
+    # Only registry URL is set
+    export REGISTRY="${REGISTRY_URL%/}/"
+elif [[ -n "$PROJECT_NAME" ]]; then
+    # Only project name is set
+    export REGISTRY="${PROJECT_NAME%/}/"
+else
+    # Neither is set, use empty registry
+    export REGISTRY=""
+fi
 echo -e "${GREEN}Using registry: ${YELLOW}$REGISTRY ${NC}"
 
 # Scene Intelligence Service Configuration
