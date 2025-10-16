@@ -14,8 +14,7 @@ echo "========================================"
 # Set default environment variables if not provided
 export TRAFFIC_INTELLIGENCE_PORT=${TRAFFIC_INTELLIGENCE_PORT:-8081}
 export TRAFFIC_INTELLIGENCE_HOST=${TRAFFIC_INTELLIGENCE_HOST:-0.0.0.0}
-export APP_PORT=${APP_PORT:-7860}
-export APP_HOST=${APP_HOST:-0.0.0.0}
+export TRAFFIC_INTELLIGENCE_UI_PORT=${TRAFFIC_INTELLIGENCE_UI_PORT:-7860}
 export USE_API=${USE_API:-true}
 export API_URL=${API_URL:-"http://localhost:${TRAFFIC_INTELLIGENCE_PORT}/api/v1/traffic/current"}
 
@@ -52,7 +51,7 @@ cd ..
 
 echo -e "${GREEN}Both services started successfully!${NC}"
 echo "  Backend API: http://$TRAFFIC_INTELLIGENCE_HOST:$TRAFFIC_INTELLIGENCE_PORT"
-echo "  UI Dashboard: http://$APP_HOST:$APP_PORT"
+echo "  UI Dashboard: http://$TRAFFIC_INTELLIGENCE_HOST:$TRAFFIC_INTELLIGENCE_UI_PORT"
 echo "  Health Check: http://$TRAFFIC_INTELLIGENCE_HOST:$TRAFFIC_INTELLIGENCE_PORT/health"
 echo "  API Docs: http://$TRAFFIC_INTELLIGENCE_HOST:$TRAFFIC_INTELLIGENCE_PORT/docs"
 

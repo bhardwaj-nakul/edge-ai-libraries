@@ -16,7 +16,7 @@ class Config:
     
     # UI settings
     APP_TITLE: str = os.getenv("APP_TITLE", "TRAFFIC MONITORING SYSTEM")
-    APP_PORT: int = int(os.getenv("APP_PORT", "7860"))
+    APP_PORT: int = int(os.getenv("TRAFFIC_INTELLIGENCE_UI_PORT", "7860"))
     APP_HOST: str = "0.0.0.0"
     
     # Theme settings

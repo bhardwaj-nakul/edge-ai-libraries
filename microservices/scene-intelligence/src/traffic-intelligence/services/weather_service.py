@@ -1,6 +1,8 @@
 """Weather service for traffic intelligence with caching and error handling."""
 
 import asyncio
+import json
+import os
 import requests
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -39,7 +41,10 @@ class WeatherService:
         # Periodic update task
         self._update_task: Optional[asyncio.Task] = None
         self._running = False
-        self.is_mock = False
+        
+        # Mock mode configuration
+        self.use_mock = self.weather_config.get("use_mock", False)
+        self.mock_data_file = "config/weather.json"
         
         logger.info("Weather service initialized", 
                    api_base_url=self.api_base_url,
@@ -117,7 +122,12 @@ class WeatherService:
         Returns:
             WeatherData object or None if unavailable
         """
-        logger.info("Getting current weather data", force_refresh=force_refresh, has_cached=self._cached_weather is not None)
+        logger.info("Getting current weather data", force_refresh=force_refresh, has_cached=self._cached_weather is not None, use_mock=self.use_mock)
+        
+        # If mock mode is enabled, return mock data from file
+        if self.use_mock:
+            logger.info("Using mock weather data from file", file=self.mock_data_file)
+            return self._load_mock_weather_from_file()
         
         if not force_refresh and self._is_cache_valid():
             logger.debug("Returning cached weather data")
@@ -207,13 +217,13 @@ class WeatherService:
                 
             except requests.exceptions.RequestException as e:
                 logger.error("HTTP request error when fetching weather data", error=str(e))
-                return self._get_mock_weather_data()
+                return self._load_mock_weather_from_file()
             except KeyError as e:
                 logger.error("Missing key in weather API response", key=str(e))
-                return self._get_mock_weather_data()
+                return self._load_mock_weather_from_file()
             except Exception as e:
                 logger.error("Failed to fetch weather data", error=str(e))
-                return self._get_mock_weather_data()
+                return self._load_mock_weather_from_file()
         
         # Run the synchronous operation in a thread pool to avoid blocking
         try:
@@ -222,35 +232,60 @@ class WeatherService:
             return result
         except Exception as e:
             logger.error("Error in async weather fetch wrapper", error=str(e))
-            return self._get_mock_weather_data()
+            return self._load_mock_weather_from_file()
         except KeyError as e:
             logger.error("Missing key in weather API response", key=str(e))
-            return self._get_mock_weather_data()
+            return self._load_mock_weather_from_file()
         except Exception as e:
             logger.error("Failed to fetch weather data", error=str(e))
-            return self._get_mock_weather_data()
+            return self._load_mock_weather_from_file()
     
-    def _get_mock_weather_data(self) -> WeatherData:
-        """Provide mock weather data when API is unavailable."""
-        return WeatherData(
-            name="Current Hour",
-            temperature=85,
-            temperature_unit="F",
-            detailed_forecast="Mostly cloudy conditions with light winds. No precipitation expected.",
-            fetched_at=datetime.now(timezone.utc),
-            is_precipitation=False,
-            is_mock=True,
-            wind_speed="5 mph",
-            wind_direction="S",
-            short_forecast="Mostly Cloudy",
-            wind_info="5mph/S",
-            precipitation_prob=4.0,
-            dewpoint=17.2,
-            relative_humidity=47.0,
-            is_daytime=False,
-            start_time="2025-09-21T22:00:00-07:00",
-            end_time="2025-09-21T23:00:00-07:00"
-        )
+    def _load_mock_weather_from_file(self) -> WeatherData:
+        """Load mock weather data from weather.json file."""
+        try:
+            if os.path.exists(self.mock_data_file):
+                with open(self.mock_data_file, 'r') as f:
+                    data = json.load(f)
+                
+                # Parse fetched_at if it's a string
+                fetched_at = data.get("fetched_at")
+                if isinstance(fetched_at, str):
+                    try:
+                        fetched_at = datetime.fromisoformat(fetched_at.replace('Z', '+00:00'))
+                    except:
+                        fetched_at = datetime.now(timezone.utc)
+                else:
+                    fetched_at = datetime.now(timezone.utc)
+                
+                weather_data = WeatherData(
+                    name=data.get("name", "Mock Data"),
+                    temperature=data.get("temperature", 72),
+                    temperature_unit=data.get("temperature_unit", "F"),
+                    detailed_forecast=data.get("detailed_forecast", "Mock weather data"),
+                    fetched_at=fetched_at,
+                    is_precipitation=data.get("is_precipitation", False),
+                    is_mock=True,
+                    wind_speed=data.get("wind_speed", "0 mph"),
+                    wind_direction=data.get("wind_direction", "N"),
+                    short_forecast=data.get("short_forecast", "Clear"),
+                    wind_info=data.get("wind_info", "0mph/N"),
+                    precipitation_prob=float(data.get("precipitation_prob", 0)),
+                    dewpoint=data.get("dewpoint"),
+                    relative_humidity=data.get("relative_humidity"),
+                    is_daytime=data.get("is_daytime"),
+                    start_time=data.get("start_time"),
+                    end_time=data.get("end_time")
+                )
+                logger.info("Loaded mock weather data from file", 
+                           temperature=weather_data.temperature,
+                           conditions=weather_data.detailed_forecast)
+                return weather_data
+            else:
+                logger.warning("Mock weather file not found, using fallback", file=self.mock_data_file)
+                return self.get_default_weather()
+        except Exception as e:
+            logger.error("Error loading mock weather data from file", error=str(e), file=self.mock_data_file)
+            return self.get_default_weather()
     
     def get_default_weather(self) -> WeatherData:
         """Get default weather data when none is available."""

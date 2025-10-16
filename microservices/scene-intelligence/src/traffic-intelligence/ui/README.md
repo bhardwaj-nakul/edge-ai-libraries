@@ -48,10 +48,6 @@ export REFRESH_INTERVAL=5
 # API endpoint configuration
 export API_URL="http://localhost:8081/api/v1/traffic/current"
 
-# Server configuration
-export APP_HOST="0.0.0.0"
-export APP_PORT=7860
-
 # UI settings
 export UI_THEME="dark"  # or "light"
 export APP_TITLE="RSU MONITORING SYSTEM"

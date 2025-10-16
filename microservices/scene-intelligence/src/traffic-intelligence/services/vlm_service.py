@@ -518,7 +518,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             if count >= self.high_density_threshold
         ]
         
-        traffic_summary = f"High traffic detected in {len(high_density_directions)} direction(s) with total {traffic_snapshot.total_count} vehicles."
+        traffic_summary = f"High traffic detected in {len(high_density_directions)} direction(s) with total {traffic_snapshot.total_count} vehicles at the Intersection"
         
         # Create basic alert
         alerts = []

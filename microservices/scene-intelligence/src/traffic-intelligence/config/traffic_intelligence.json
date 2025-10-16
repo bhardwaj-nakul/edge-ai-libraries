@@ -9,6 +9,8 @@
     "host": "broker.scenescape.intel.com",
     "port": 1883,
     "use_tls": true,
+    "cert_required": false,
+    "verify_hostname": false,
     "ca_cert_path": "secrets/certs/scenescape-ca.pem",
     "camera_topics": [
       "scenescape/data/camera/camera1",

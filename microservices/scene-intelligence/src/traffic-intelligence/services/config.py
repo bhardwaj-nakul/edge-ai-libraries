@@ -38,33 +38,75 @@ class ConfigService:
                 logger.warning("Failed to load config file", path=config_file, error=str(e))
         
         # Override with environment variables
+        # Intersection configuration
+        if os.getenv("INTERSECTION_NAME"):
+            if "intersection" not in config:
+                config["intersection"] = {}
+            config["intersection"]["name"] = os.getenv("INTERSECTION_NAME")
+        if os.getenv("INTERSECTION_LATITUDE"):
+            if "intersection" not in config:
+                config["intersection"] = {}
+            config["intersection"]["latitude"] = float(os.getenv("INTERSECTION_LATITUDE"))
+        if os.getenv("INTERSECTION_LONGITUDE"):
+            if "intersection" not in config:
+                config["intersection"] = {}
+            config["intersection"]["longitude"] = float(os.getenv("INTERSECTION_LONGITUDE"))
+        
         # MQTT configuration
         if os.getenv("MQTT_HOST"):
-            config.setdefault("mqtt", {})["host"] = os.getenv("MQTT_HOST")
+            if "mqtt" not in config:
+                config["mqtt"] = {}
+            config["mqtt"]["host"] = os.getenv("MQTT_HOST")
         if os.getenv("MQTT_PORT"):
-            config.setdefault("mqtt", {})["port"] = int(os.getenv("MQTT_PORT"))
+            if "mqtt" not in config:
+                config["mqtt"] = {}
+            config["mqtt"]["port"] = int(os.getenv("MQTT_PORT"))
+        
+        # Weather configuration
+        if os.getenv("WEATHER_MOCK"):
+            if "weather" not in config:
+                config["weather"] = {}
+            config["weather"]["use_mock"] = os.getenv("WEATHER_MOCK").lower() in ["true", "1", "yes"]
         
         # VLM configuration
         if os.getenv("VLM_BASE_URL"):
-            config.setdefault("vlm", {})["base_url"] = os.getenv("VLM_BASE_URL")
+            if "vlm" not in config:
+                config["vlm"] = {}
+            config["vlm"]["base_url"] = os.getenv("VLM_BASE_URL")
         if os.getenv("VLM_MODEL"):
-            config.setdefault("vlm", {})["model"] = os.getenv("VLM_MODEL")
+            if "vlm" not in config:
+                config["vlm"] = {}
+            config["vlm"]["model"] = os.getenv("VLM_MODEL")
         if os.getenv("VLM_TIMEOUT_SECONDS"):
-            config.setdefault("vlm", {})["timeout_seconds"] = int(os.getenv("VLM_TIMEOUT_SECONDS"))
+            if "vlm" not in config:
+                config["vlm"] = {}
+            config["vlm"]["timeout_seconds"] = int(os.getenv("VLM_TIMEOUT_SECONDS"))
         if os.getenv("VLM_MAX_COMPLETION_TOKENS"):
-            config.setdefault("vlm", {})["max_completion_tokens"] = int(os.getenv("VLM_MAX_COMPLETION_TOKENS"))
+            if "vlm" not in config:
+                config["vlm"] = {}
+            config["vlm"]["max_completion_tokens"] = int(os.getenv("VLM_MAX_COMPLETION_TOKENS"))
         if os.getenv("VLM_TEMPERATURE"):
-            config.setdefault("vlm", {})["temperature"] = float(os.getenv("VLM_TEMPERATURE"))
+            if "vlm" not in config:
+                config["vlm"] = {}
+            config["vlm"]["temperature"] = float(os.getenv("VLM_TEMPERATURE"))
         if os.getenv("VLM_TOP_P"):
-            config.setdefault("vlm", {})["top_p"] = float(os.getenv("VLM_TOP_P"))
+            if "vlm" not in config:
+                config["vlm"] = {}
+            config["vlm"]["top_p"] = float(os.getenv("VLM_TOP_P"))
         
         # Traffic configuration
         if os.getenv("HIGH_DENSITY_THRESHOLD"):
-            config.setdefault("traffic", {})["high_density_threshold"] = float(os.getenv("HIGH_DENSITY_THRESHOLD"))
+            if "traffic" not in config:
+                config["traffic"] = {}
+            config["traffic"]["high_density_threshold"] = float(os.getenv("HIGH_DENSITY_THRESHOLD"))
         if os.getenv("TRAFFIC_BUFFER_DURATION"):
-            config.setdefault("traffic", {})["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
+            if "traffic" not in config:
+                config["traffic"] = {}
+            config["traffic"]["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
         if os.getenv("DATA_RETENTION_HOURS"):
-            config.setdefault("traffic", {})["data_retention_minutes"] = int(os.getenv("DATA_RETENTION_HOURS")) * 60
+            if "traffic" not in config:
+                config["traffic"] = {}
+            config["traffic"]["data_retention_minutes"] = int(os.getenv("DATA_RETENTION_HOURS")) * 60
                
         return config
 
