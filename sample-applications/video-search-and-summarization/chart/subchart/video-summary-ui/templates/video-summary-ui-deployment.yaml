@@ -15,11 +15,11 @@ spec:
         app: {{ .Values.name }}
     spec:
       containers:
-        - name: {{ .Values.name }}
+        - name: {{ .Chart.Name }}
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.containerPort }}
+            - containerPort: 8080
               name: {{ .Values.containerPortName }}
           env:
             - name: APP_ENDPOINT_URL

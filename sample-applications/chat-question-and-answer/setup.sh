@@ -1,5 +1,11 @@
 #!/bin/bash
 
+#Volume mount paths
+export model_cache_path=~/.cache/huggingface
+export SSL_CERTIFICATES_PATH=/etc/ssl/certs
+export CA_CERTIFICATES_PATH=/opt/share/ca-certificates
+export VOLUME_OVMS=${PWD}/ovms
+
 # Setup the PG Vector DB Connection configuration
 export PGVECTOR_HOST=pgvector_db
 export PGVECTOR_PORT=5432
@@ -34,7 +40,7 @@ export MINIO_API_PORT=9000
 export MINIO_API_HOST_PORT=9999
 export MINIO_CONSOLE_PORT=9001
 export MINIO_CONSOLE_HOST_PORT=9990
-export MINIO_MOUNT_PATH=/mnt/miniodata
+export MINIO_MOUNT_PATH=/opt/share/mnt/miniodata
 export MINIO_ROOT_USER=${MINIO_USER:-dummy_user}
 export MINIO_ROOT_PASSWORD=${MINIO_PASSWD:-dummy_321}
 
@@ -52,6 +58,7 @@ if [[ -n "$OTLP_ENDPOINT" ]]; then
   export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 fi
 
+
 # VLLM
 export TENSOR_PARALLEL_SIZE=1
 export KVCACHE_SPACE=50
@@ -60,7 +67,6 @@ export KVCACHE_SPACE=50
 # OVMS
 export MODEL_DIRECTORY_NAME=$(basename $LLM_MODEL)
 export WEIGHT_FORMAT=int8
-export VOLUME_OVMS=${PWD}/ovms_config
 
 #TGI
 #export VOLUME=$PWD/data
@@ -85,6 +91,46 @@ if compgen -G "/dev/dri/render*" > /dev/null; then
 
 fi
 
+#Create virtual env and install dependencies
+if [[ "${1,,}" == *"llm=ovms"* || "${2,,}" == *"embed=ovms"* ]]; then
+        # Check for Python first
+        if ! command -v python3 >/dev/null 2>&1; then
+                echo "Error: Python 3 is required but not found"
+                exit 1
+        fi
+        
+        # Check if we need to create or recreate the venv
+        if [ ! -d .venv ] || [ "${REBUILD_VENV:-false}" = "true" ]; then
+                # Deactivate if there's an active venv (works in both bash and sh)
+                command -v deactivate >/dev/null 2>&1 && deactivate
+                # Remove old venv if exists
+                [ -d .venv ] && rm -rf .venv
+                echo "Creating new virtual environment..."
+                python3 -m venv .venv || { echo "Failed to create virtual environment"; exit 1; }
+        fi
+        
+        # Activate the virtual environment - compatible with different shells
+        if [ -f .venv/bin/activate ]; then
+                . .venv/bin/activate || { echo "Failed to activate virtual environment"; exit 1; }
+        else
+                echo "Virtual environment activation script not found"; exit 1
+        fi
+        
+        if ! python3 -m pip show openvino >/dev/null 2>&1; then
+                echo "Installing OpenVINO and required dependencies..."
+                python3 -m pip install -r https://raw.githubusercontent.com/openvinotoolkit/model_server/refs/heads/releases/2025/3/demos/common/export_models/requirements.txt
+                python3 -m pip install -U "huggingface_hub[hf_xet]"
+        fi
+        mkdir -p ./ovms/models
+        cd ovms || { echo "Failed to change to ovms directory"; exit 1; }
+        if [ -n "$HUGGINGFACEHUB_API_TOKEN" ]; then
+                hf auth login --token "$HUGGINGFACEHUB_API_TOKEN"
+        fi
+        curl -s https://raw.githubusercontent.com/openvinotoolkit/model_server/refs/heads/releases/2025/3/demos/common/export_models/export_model.py -o export_model.py
+        echo "OpenVINO and required dependencies installed."
+        cd ..
+fi
+
 setup_inference() {
         local service=$1
         case "${service,,}" in
@@ -103,7 +149,7 @@ setup_inference() {
                                 export COMPOSE_PROFILES=OVMS
 
                         fi
-                        cd ./ovms_config
+                        cd ./ovms
                         python3 export_model.py text_generation --source_model $LLM_MODEL --weight-format $WEIGHT_FORMAT --config_file_path models/config.json --model_repository_path models --target_device $DEVICE --cache_size $OVMS_CACHE_SIZE --overwrite_models
                         cd ..
                         ;;
@@ -133,8 +179,8 @@ setup_embedding() {
                                 export COMPOSE_PROFILES=$COMPOSE_PROFILES,OVMS
 
                         fi
-                        cd ./ovms_config
-                        python3 export_model.py embeddings --source_model $EMBEDDING_MODEL_NAME --weight-format $WEIGHT_FORMAT --config_file_path models/config.json --model_repository_path models --target_device $DEVICE --overwrite_models
+                        cd ./ovms
+                        python3 export_model.py embeddings_ov --source_model $EMBEDDING_MODEL_NAME --weight-format $WEIGHT_FORMAT --config_file_path models/config.json --model_repository_path models --target_device $DEVICE --overwrite_models
                         cd ..
                         ;;
                 *)

@@ -2,6 +2,7 @@ import unittest
 
 from pipelines.smartnvr.pipeline import SmartNVRPipeline
 
+
 class TestSmartNVRPipeline(unittest.TestCase):
     def setUp(self):
         self.pipeline = SmartNVRPipeline()
@@ -22,6 +23,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
 
         # Check that gst-launch-1.0 command is present
         self.assertTrue(result.startswith("gst-launch-1.0"))
+
+        # Check that tracking is set to short-term-imageless
+        self.assertIn("tracking-type=short-term-imageless", result)
 
         # Check that the number of inference channels is correct
         self.assertEqual(result.count("gvadetect"), self.inference_channels)
@@ -62,7 +66,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
                 "object_classification_inference_interval": 1,
                 "object_classification_nireq": 0,
                 "object_classification_reclassify_interval": 1,
+                "tracking_type": "short-term-imageless",
                 "pipeline_watermark_enabled": False,
+                "live_preview_enabled": False,
             },
             regular_channels=self.regular_channels,
             inference_channels=self.inference_channels,
@@ -96,7 +102,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
                 "object_classification_inference_interval": 1,
                 "object_classification_nireq": 0,
                 "object_classification_reclassify_interval": 1,
+                "tracking_type": "short-term-imageless",
                 "pipeline_watermark_enabled": True,
+                "live_preview_enabled": False,
             },
             regular_channels=self.regular_channels,
             inference_channels=self.inference_channels,
@@ -134,7 +142,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
                 "object_classification_inference_interval": 1,
                 "object_classification_nireq": 0,
                 "object_classification_reclassify_interval": 1,
+                "tracking_type": "short-term-imageless",
                 "pipeline_watermark_enabled": True,
+                "live_preview_enabled": False,
             },
             regular_channels=self.regular_channels,
             inference_channels=self.inference_channels,
@@ -165,7 +175,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
                 "object_classification_inference_interval": 1,
                 "object_classification_nireq": 0,
                 "object_classification_reclassify_interval": 1,
+                "tracking_type": "short-term-imageless",
                 "pipeline_watermark_enabled": True,
+                "live_preview_enabled": False,
             },
             regular_channels=self.regular_channels,
             inference_channels=self.inference_channels,
@@ -203,7 +215,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
                 "object_classification_inference_interval": 1,
                 "object_classification_nireq": 0,
                 "object_classification_reclassify_interval": 1,
+                "tracking_type": "short-term-imageless",
                 "pipeline_watermark_enabled": True,
+                "live_preview_enabled": False,
             },
             regular_channels=self.regular_channels,
             inference_channels=self.inference_channels,
@@ -251,7 +265,9 @@ class TestSmartNVRPipeline(unittest.TestCase):
                 "object_classification_inference_interval": 1,
                 "object_classification_nireq": 0,
                 "object_classification_reclassify_interval": 1,
+                "tracking_type": "short-term-imageless",
                 "pipeline_watermark_enabled": True,
+                "live_preview_enabled": False,
             },
             regular_channels=self.regular_channels,
             inference_channels=self.inference_channels,

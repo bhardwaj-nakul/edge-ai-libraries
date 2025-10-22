@@ -30,7 +30,8 @@
 #                      V
 #                  dlstreamer
 # ==============================================================================
-FROM ubuntu:24.04 AS builder
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}ubuntu:24.04 AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_ARG=Release
@@ -39,9 +40,9 @@ LABEL description="This is the development image of Intel® Deep Learning Stream
 LABEL vendor="Intel Corporation"
 
 ARG GST_VERSION=1.26.4
-ARG OPENVINO_VERSION=2025.2.0
+ARG OPENVINO_VERSION=2025.3.0
 
-ARG DLSTREAMER_VERSION=2025.0.1.3
+ARG DLSTREAMER_VERSION=2025.1.2
 ARG DLSTREAMER_BUILD_NUMBER
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
@@ -63,7 +64,7 @@ RUN \
 RUN \
     curl -fsSL https://repositories.intel.com/gpu/intel-graphics.key | \
     gpg --dearmor -o /usr/share/keyrings/intel-graphics.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble unified" |\ 
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble unified" |\
     tee /etc/apt/sources.list.d/intel-gpu-noble.list
 
 RUN \
@@ -75,12 +76,12 @@ RUN \
 
 # Intel NPU drivers and prerequisites installation
 WORKDIR /tmp/npu_deps
-    
-RUN curl -L -O https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u24.04_amd64.deb && \
-    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb && \
-    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-fw-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb && \
-    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-level-zero-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb && \
-    apt-get update && apt-get install --no-install-recommends -y /tmp/npu_deps/*.deb && \
+
+RUN curl -LO https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u24.04_amd64.deb && \
+    dpkg -i level-zero_1.22.4+u24.04_amd64.deb && \
+    curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.23.0/linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
+    tar -xf linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
+    dpkg -i ./*.deb && \
     rm -rf /var/lib/apt/lists/* /tmp/npu_deps
 
 WORKDIR /
@@ -94,7 +95,7 @@ RUN \
     libcairo2-dev=\* libxt-dev=\* libgirepository1.0-dev=\* libgles2-mesa-dev=\* wayland-protocols=\* \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
     linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* \
-    ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
+    ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* opencv-data=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
     libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* libxml2-dev=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -190,6 +191,7 @@ RUN \
     -Dgst-plugins-bad:bs2b=disabled \
     -Dgst-plugins-bad:flite=disabled \
     -Dgst-plugins-bad:rtmp=disabled \
+    -Dgst-plugins-bad:opencv=enabled \
     -Dgst-plugins-bad:sbc=disabled \
     -Dgst-plugins-bad:teletext=disabled \
     -Dgst-plugins-bad:hls-crypto=openssl \
@@ -262,6 +264,29 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 
+# Build librealsense
+WORKDIR /home/dlstreamer
+
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/IntelRealSense/librealsense.git librealsense
+
+WORKDIR /home/dlstreamer/librealsense
+
+RUN mkdir build
+
+WORKDIR /home/dlstreamer/librealsense/build
+
+RUN \
+    cmake ../ -DCMAKE_BUILD_TYPE="${BUILD_ARG}" -DBUILD_EXAMPLES=false -DBUILD_GRAPHICAL_EXAMPLES=false && \
+    make -j "$(nproc)" && \
+    make install
+
+# Build DL Streamer
+WORKDIR /home/dlstreamer
+
 RUN apt-get update && apt-get install --no-install-recommends -y gnupg=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -273,6 +298,12 @@ RUN \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# OpenVINO Gen AI
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_VERSION}.0_x86_64
+ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/${OPENVINO_GENAI_VER}.tar.gz
+
+RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
+    mv ${OPENVINO_GENAI_VER} /opt/intel/openvino_genai
 
 WORKDIR "$DLSTREAMER_DIR"
 
@@ -299,18 +330,21 @@ ENV GST_PLUGIN_SCANNER=${GSTREAMER_DIR}/bin/gstreamer-1.0/gst-plugin-scanner
 ENV GI_TYPELIB_PATH=${GSTREAMER_DIR}/lib/girepository-1.0
 ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/python:${PYTHONPATH}
 
-# Build DLStreamer 
+# Build DLStreamer
 RUN \
+    source /opt/intel/openvino_genai/setupvars.sh && \
     cmake \
-    -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
-    -DENABLE_PAHO_INSTALLATION=ON \
-    -DENABLE_RDKAFKA_INSTALLATION=ON \
-    -DENABLE_VAAPI=ON \
-    -DENABLE_SAMPLES=ON \
-    .. && \
-    make -j "$(nproc)" && \
-    usermod -a -G video dlstreamer && \
-    chown -R dlstreamer:dlstreamer /home/dlstreamer
+       -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
+       -DENABLE_PAHO_INSTALLATION=ON \
+       -DENABLE_RDKAFKA_INSTALLATION=ON \
+       -DENABLE_VAAPI=ON \
+       -DENABLE_SAMPLES=ON \
+       -DENABLE_REALSENSE=ON \
+       -DENABLE_GENAI=ON \
+       .. && \
+       make -j "$(nproc)" && \
+       usermod -a -G video dlstreamer && \
+       chown -R dlstreamer:dlstreamer /home/dlstreamer
 
 WORKDIR /home/dlstreamer
 USER dlstreamer
@@ -332,7 +366,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN \
+    mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
+    find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -363,7 +399,8 @@ RUN \
     mv "/intel-dlstreamer_${DLSTREAMER_VERSION}_amd64.deb" "/intel-dlstreamer_${DLSTREAMER_VERSION}.${DLSTREAMER_BUILD_NUMBER}_amd64.deb"
 
 # ==============================================================================
-FROM ubuntu:24.04 AS dlstreamer
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}ubuntu:24.04 AS dlstreamer
 ARG DLSTREAMER_VERSION
 ARG DLSTREAMER_BUILD_NUMBER
 # Build final image for dlstreamer - using .deb packages for installation
@@ -396,12 +433,12 @@ RUN \
 
 # Intel NPU drivers and prerequisites installation
 WORKDIR /tmp/npu_deps
-    
-RUN curl -L -O https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u24.04_amd64.deb && \
-    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb && \
-    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-fw-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb && \
-    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-level-zero-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb && \
-    apt-get update && apt-get install --no-install-recommends -y /tmp/npu_deps/*.deb && \
+
+RUN curl -LO https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u24.04_amd64.deb && \
+    dpkg -i level-zero_1.22.4+u24.04_amd64.deb && \
+    curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.23.0/linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
+    tar -xf linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz && \
+    dpkg -i ./*.deb && \
     rm -rf /var/lib/apt/lists/* /tmp/npu_deps
 
 WORKDIR /

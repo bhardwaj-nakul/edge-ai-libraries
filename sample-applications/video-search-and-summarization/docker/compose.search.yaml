@@ -42,7 +42,7 @@ services:
     ports:
       - "${VS_HOST_PORT}:8000"
     environment:
-      no_proxy: ${no_proxy},${MULTIMODAL_EMBEDDING_HOST},${VDMS_DATAPREP_HOST},${MINIO_HOST},${VDMS_VDB_HOST},${PM_HOST}
+      no_proxy: ${no_proxy},${MULTIMODAL_EMBEDDING_HOST},${VDMS_DATAPREP_HOST},${MINIO_HOST},${VDMS_VDB_HOST},${PM_HOST},localhost
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       VDMS_VDB_HOST: ${VDMS_VDB_HOST}
@@ -90,7 +90,7 @@ services:
     image: ${REGISTRY:-}vdms-dataprep:${TAG:-latest}
     hostname: vdms-dataprep
     environment:
-      no_proxy: ${no_proxy},${VDMS_VDB_HOST},${MULTIMODAL_EMBEDDING_HOST},${MINIO_HOST}
+      no_proxy: ${no_proxy},${VDMS_VDB_HOST},${MULTIMODAL_EMBEDDING_HOST},${MINIO_HOST},localhost
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       # Basic app settings
@@ -163,7 +163,10 @@ services:
       - "${EMBEDDING_SERVER_PORT:-9777}:8000"
     ipc: host
     environment:
-      no_proxy_env: ${no_proxy_env},vdms-dataprep
+      no_proxy: ${no_proxy},${MINIO_HOST},${VDMS_DATAPREP_HOST}
+      no_proxy_env: ${no_proxy},${MINIO_HOST},${VDMS_DATAPREP_HOST}
+      no_proxy: ${no_proxy},${MINIO_HOST},${VDMS_DATAPREP_HOST},localhost,vdms-dataprep,${no_proxy_env}
+      no_proxy_env: ${no_proxy},${MINIO_HOST},${VDMS_DATAPREP_HOST},localhost,vdms-dataprep,${no_proxy_env}
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
@@ -175,7 +178,7 @@ services:
       DEFAULT_NUM_FRAMES: ${DEFAULT_NUM_FRAMES}
       OV_PERFORMANCE_MODE: ${OV_PERFORMANCE_MODE:-LATENCY}
     devices:
-      - /dev/dri:/dev/dri
+      - ${DRI_MOUNT_PATH:-/dev/null}:/dev/dri
     group_add:
       - ${USER_GROUP_ID:-1000}
       - ${VIDEO_GROUP_ID:-44}

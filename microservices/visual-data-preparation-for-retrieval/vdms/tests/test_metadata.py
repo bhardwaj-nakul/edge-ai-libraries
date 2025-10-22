@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pathlib
+from src.core.util import extract_video_metadata
 
 # Note: This test file is commented out as it tests deprecated functionality
 # that was not migrated during the util.py refactoring

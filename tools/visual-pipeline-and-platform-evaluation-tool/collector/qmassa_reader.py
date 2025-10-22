@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
+import fcntl
 import json
 import logging
-import subprocess
-import time
-import fcntl
-import sys
 import os
+import re
+import subprocess
+import sys
+import time
 
 # === Constants ===
 LOG_FILE = "/app/qmassa_log.json"
@@ -21,17 +22,33 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s (line %(lineno)d)",
 )
 
+
 def execute_qmassa_command():
     qmassa_command = [
         # Run qmassa with a 100ms interval and 2 iterations to calculate power as the delta between iterations
-        "qmassa", "--ms-interval", "100", "--no-tui", "--nr-iterations", "2", "--to-json", LOG_FILE
+        "qmassa",
+        "--ms-interval",
+        "100",
+        "--no-tui",
+        "--nr-iterations",
+        "2",
+        "--to-json",
+        LOG_FILE,
     ]
 
     try:
-        subprocess.run(qmassa_command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            qmassa_command,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     except Exception as e:
-        logging.error(f"Error running qmassa command: {' '.join(qmassa_command)}. Exception: {e}")
+        logging.error(
+            f"Error running qmassa command: {' '.join(qmassa_command)}. Exception: {e}"
+        )
         sys.exit(1)
+
 
 def load_log_file():
     try:
@@ -45,21 +62,29 @@ def load_log_file():
         logging.error(f"Unexpected error while loading log file: {e}")
     sys.exit(1)
 
+
 def emit_engine_usage(eng_usage, gpu_id, ts):
     for eng, vals in eng_usage.items():
         if vals:
-            print(f"engine_usage,engine={eng},type={eng},host={HOSTNAME},gpu_id={gpu_id} usage={vals[-1]} {ts}")
+            print(
+                f"engine_usage,engine={eng},type={eng},host={HOSTNAME},gpu_id={gpu_id} usage={vals[-1]} {ts}"
+            )
+
 
 def emit_frequency(freqs, gpu_id, ts):
     if freqs and isinstance(freqs[-1], list):
         freq_entry = freqs[-1][0]
         if isinstance(freq_entry, dict) and "cur_freq" in freq_entry:
-            print(f"gpu_frequency,type=cur_freq,host={HOSTNAME},gpu_id={gpu_id} value={freq_entry['cur_freq']} {ts}")
+            print(
+                f"gpu_frequency,type=cur_freq,host={HOSTNAME},gpu_id={gpu_id} value={freq_entry['cur_freq']} {ts}"
+            )
+
 
 def emit_power(power, gpu_id, ts):
     if power:
         for key, val in power[-1].items():
             print(f"power,type={key},host={HOSTNAME},gpu_id={gpu_id} value={val} {ts}")
+
 
 def process_device_metrics(dev, gpu_id, current_ts_ns):
     dev_stats = dev.get("dev_stats", {})
@@ -71,6 +96,7 @@ def process_device_metrics(dev, gpu_id, current_ts_ns):
     emit_frequency(freqs, gpu_id, current_ts_ns)
     emit_power(power, gpu_id, current_ts_ns)
 
+
 def process_states(data):
     try:
         states = data.get("states", [])
@@ -80,20 +106,27 @@ def process_states(data):
 
         current_ts_ns = int(time.time() * 1e9)
 
-        # Use the last state from 2 iterations, to get the non-zero power values
         devs_state = states[-1].get("devs_state", [])
         if not devs_state:
             logging.warning("No devs_state found in the log file")
             return
 
-        # If there are multiple devices, process the last two
-        if len(devs_state) >= 2:
-            for gpu_id, dev in enumerate(devs_state[-2:]):
-                process_device_metrics(dev, gpu_id, current_ts_ns)
-        else:
-            # If only one device, process it
-            dev = devs_state[-1]
-            process_device_metrics(dev, 0, current_ts_ns)
+        # Process all devices in devs_state
+        for dev in devs_state:
+            dev_nodes = dev.get("dev_nodes", "")
+            match = re.search(r"renderD(\d+)", dev_nodes)
+            if not match:
+                continue  # no renderD<number> found, skip this device
+
+            number = int(match.group(1))
+            if number < 128:
+                logging.warning(
+                    f"renderD{number} in dev_nodes '{dev_nodes}' is less than 128, skipping device"
+                )
+                continue
+
+            gpu_id = number - 128
+            process_device_metrics(dev, gpu_id, current_ts_ns)
     except Exception as e:
         logging.error(f"Error processing log file: {e}")
 

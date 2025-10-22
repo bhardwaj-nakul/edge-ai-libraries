@@ -8,6 +8,10 @@ export const enTranslations = {
   videoTags: 'Video tags (separated by commas)',
 
   SearchVideo: 'Search Videos',
+  GroupByTag: 'Group by Tag',
+  VideoGroups: 'Video Groups by Tags',
+  NoVideosAvailable: 'No Videos Available',
+  NoVideosDescription: 'Upload some videos to see them grouped by tags.',
   SearchRerun: 'Re-run search',
   videoSearchStart: 'Video Search Query',
   SearchingForPlaceholder: 'Red bus or white plane...',
@@ -162,6 +166,7 @@ export const enTranslations = {
   errorWithUpperCase: 'Error',
   deletedSuccessfully: 'deleted successfully',
   unknownError: 'An unknown error occurred',
+  videoUploadError: 'An error occurred during video upload',
   invalidLink: 'Invalid link',
   showNoticeHiddenButton: 'Show Notice',
   showNotificationWhileStreaming: 'Please wait, streaming your current query response...',

@@ -31,19 +31,20 @@
 #                      V
 #                  dlstreamer
 # ==============================================================================
-FROM fedora:41 AS builder
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}fedora:41 AS builder
 
 ARG BUILD_ARG=Release
 
-LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
+LABEL description="This is the development image of Deep Learning Streamer (DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
 
 ARG GST_VERSION=1.26.4
 ARG FFMPEG_VERSION=6.1.1
 
-ARG OPENVINO_VERSION=2025.2.0
+ARG OPENVINO_VERSION=2025.3.0
 
-ARG DLSTREAMER_VERSION=2025.0.1.3
+ARG DLSTREAMER_VERSION=2025.1.2
 ARG DLSTREAMER_BUILD_NUMBER
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
@@ -62,7 +63,7 @@ RUN \
     "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm" && \
     dnf install -y libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
     flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
-    python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
+    python3-gobject-devel python3-devel tbb gnupg2 unzip gflags-devel openssl-devel openssl-devel-engine \
     gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
     cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel which \
     libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
@@ -141,7 +142,41 @@ RUN cp -a /usr/local/lib/libav* ./ && \
     cp -a /usr/local/lib/libswresample* ./
 
 # ==============================================================================
-FROM ffmpeg-builder AS gstreamer-builder
+FROM ffmpeg-builder AS opencv-builder
+# OpenCV
+SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+WORKDIR /
+
+RUN \
+    curl -sSL --insecure -o opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
+    curl -sSL --insecure -o opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
+    unzip opencv.zip && \
+    unzip opencv_contrib.zip && \
+    rm opencv.zip opencv_contrib.zip && \
+    mv opencv-4.10.0 opencv && \
+    mv opencv_contrib-4.10.0 opencv_contrib && \
+    mkdir -p opencv/build
+
+WORKDIR /opencv/build
+
+RUN \
+    cmake \
+    -DBUILD_TESTS=OFF \
+    -DBUILD_PERF_TESTS=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_opencv_apps=OFF \
+    -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
+    -DOPENCV_GENERATE_PKGCONFIG=YES \
+    -GNinja .. && \
+    ninja -j "$(nproc)" && \
+    ninja install
+
+WORKDIR /copy_libs
+RUN cp -a /usr/local/lib64/libopencv* ./
+
+# ==============================================================================
+FROM opencv-builder AS gstreamer-builder
 # Build GStreamer
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 WORKDIR /home/dlstreamer
@@ -194,6 +229,7 @@ RUN \
     -Dgst-plugins-bad:bs2b=disabled \
     -Dgst-plugins-bad:flite=disabled \
     -Dgst-plugins-bad:rtmp=disabled \
+    -Dgst-plugins-bad:opencv=enabled \
     -Dgst-plugins-bad:sbc=disabled \
     -Dgst-plugins-bad:teletext=disabled \
     -Dgst-plugins-bad:hls-crypto=openssl \
@@ -258,39 +294,6 @@ RUN \
     strip -g "${GSTREAMER_DIR}"/lib/gstreamer-1.0/libgstrs*.so
 
 # ==============================================================================
-FROM ffmpeg-builder AS opencv-builder
-# OpenCV
-SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
-
-WORKDIR /
-
-RUN \
-    curl -sSL --insecure -o opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
-    curl -sSL --insecure -o opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
-    unzip opencv.zip && \
-    unzip opencv_contrib.zip && \
-    rm opencv.zip opencv_contrib.zip && \
-    mv opencv-4.10.0 opencv && \
-    mv opencv_contrib-4.10.0 opencv_contrib && \
-    mkdir -p opencv/build
-
-WORKDIR /opencv/build
-
-RUN \
-    cmake \
-    -DBUILD_TESTS=OFF \
-    -DBUILD_PERF_TESTS=OFF \
-    -DBUILD_EXAMPLES=OFF \
-    -DBUILD_opencv_apps=OFF \
-    -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
-    -GNinja .. && \
-    ninja -j "$(nproc)" && \
-    ninja install
-
-WORKDIR /copy_libs
-RUN cp -a /usr/local/lib64/libopencv* ./
-
-# ==============================================================================
 FROM builder AS kafka-builder
 # Build rdkafka
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -311,8 +314,8 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 COPY --from=ffmpeg-builder /copy_libs/ /usr/local/lib/
 COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libswresample* /usr/local/lib/pkgconfig/
 COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libav* /usr/local/lib/pkgconfig/
-COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libswscale* /usr/local/lib/pkgconfig/ 
-COPY --from=ffmpeg-builder /usr/local/include/ /usr/local/include/ 
+COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libswscale* /usr/local/lib/pkgconfig/
+COPY --from=ffmpeg-builder /usr/local/include/ /usr/local/include/
 COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
 COPY --from=opencv-builder /copy_libs/ /usr/local/lib64/
@@ -335,7 +338,7 @@ RUN dnf install -y "openvino-${OPENVINO_VERSION}" && \
     dnf clean all
 
 
-# Intel® DL Streamer
+# Deep Learning Streamer
 WORKDIR "$DLSTREAMER_DIR"
 
 COPY . "${DLSTREAMER_DIR}"
@@ -348,7 +351,7 @@ ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/bin
 ENV PATH=${GSTREAMER_DIR}/bin:${BINDIR}:${PATH}
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib64/pkgconfig:${GSTREAMER_DIR}/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
 ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:/usr/local/lib64/:${LD_LIBRARY_PATH}
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C
@@ -383,7 +386,7 @@ RUN \
 WORKDIR /home/dlstreamer
 USER dlstreamer
 
-
+# ==============================================================================
 FROM dlstreamer-dev AS rpm-builder
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -411,7 +414,6 @@ RUN \
     cp -r "${DLSTREAMER_DIR}/include/" /${RPM_PKG_NAME}/opt/intel/dlstreamer/ && \
     cp "${DLSTREAMER_DIR}/README.md" /${RPM_PKG_NAME}/opt/intel/dlstreamer && \
     cp -rT "${GSTREAMER_DIR}" /${RPM_PKG_NAME}/opt/intel/dlstreamer/gstreamer && \
-    cp -a /usr/lib64/libopencv* /${RPM_PKG_NAME}/opt/opencv/ && \
     cp -a /usr/local/lib64/libopencv* /${RPM_PKG_NAME}/opt/opencv/ && \
     cp -a /usr/local/lib/librdkafka* /${RPM_PKG_NAME}/opt/rdkafka/ && \
     find /usr/local/lib -regextype grep -regex ".*libav.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
@@ -429,9 +431,12 @@ RUN \
     find /${RPM_PKG_NAME}/opt/intel -name "*.a" -delete && \
     rpmbuild -bb ~/rpmbuild/SPECS/intel-dlstreamer.spec
 
-RUN cp ~/rpmbuild/RPMS/x86_64/${RPM_PKG_NAME}* "/${RPM_PKG_NAME}.${DLSTREAMER_BUILD_NUMBER}-1.fc41.x86_64.rpm"
+RUN mkdir /rpms && \
+    cp ~/rpmbuild/RPMS/x86_64/${RPM_PKG_NAME}* "/rpms/${RPM_PKG_NAME}.${DLSTREAMER_BUILD_NUMBER}-1.fc41.x86_64.rpm"
 
-FROM fedora:41 AS dlstreamer
+# ==============================================================================
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}fedora:41 AS dlstreamer
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
@@ -453,7 +458,7 @@ gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.
 
 RUN mkdir -p /rpms
 
-COPY --from=rpm-builder /*.rpm /rpms/
+COPY --from=rpm-builder /rpms/*.rpm /rpms/
 
 # Download and install DLS rpm package
 RUN \
@@ -465,7 +470,7 @@ RUN \
 
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/openh264:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
