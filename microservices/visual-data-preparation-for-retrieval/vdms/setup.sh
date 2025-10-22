@@ -20,6 +20,10 @@ export INDEX_NAME="video-rag"
 export DEFAULT_BUCKET_NAME="vdms-bucket"
 export VDMS_DATAPREP_HOST_PORT=6007
 
+# Model storage configuration for object detection
+export YOLOX_MODELS_VOLUME_NAME="${PROJECT_NAME:-}vdms-yolox-models"
+export YOLOX_MODELS_MOUNT_PATH="/app/models/yolox"
+
 # Env vars for minio service ---------------------------
 export MINIO_HOST="minio-server"
 # Port on which we want to access API service outside container i.e. on host.
@@ -69,6 +73,20 @@ if [ "$1" != "--down" ] && [ "$1" != "--build" ] && [ "$1" != "--build-dev" ] &&
         echo -e "${RED}ERROR: MINIO_ROOT_PASSWORD is not set in environment.${NC}"
         return
     fi
+    
+    # Create docker volume for YOLOX models if it doesn't exist
+    if ! docker volume ls | grep -q "${YOLOX_MODELS_VOLUME_NAME}"; then
+        echo "Creating Docker volume for YOLOX models: ${YOLOX_MODELS_VOLUME_NAME}"
+        docker volume create "${YOLOX_MODELS_VOLUME_NAME}"
+        if [ $? = 0 ]; then
+            echo "YOLOX models volume created successfully"
+        else
+            echo -e "${RED}ERROR: Failed to create YOLOX models volume${NC}"
+            return
+        fi
+    else
+        echo "YOLOX models volume already exists: ${YOLOX_MODELS_VOLUME_NAME}"
+    fi
 fi
 
 #------------------------------------------------------------------------------------------
@@ -110,6 +128,10 @@ elif [ "$1" = "--down" ] && [ "$#" -eq 1 ]; then
     docker compose -f docker/compose.yaml down
     if [ $? = 0 ]; then
         echo "All services down!"
+        
+        # Optional: Remove YOLOX models volume (uncomment if you want to clean up models on teardown)
+        # echo "Removing YOLOX models volume: ${YOLOX_MODELS_VOLUME_NAME}"
+        # docker volume rm "${YOLOX_MODELS_VOLUME_NAME}" 2>/dev/null || echo "Volume not found or already removed"
     fi
 
 # Build dataprep image

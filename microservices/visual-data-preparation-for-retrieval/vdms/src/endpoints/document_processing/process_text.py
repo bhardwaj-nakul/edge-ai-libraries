@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body, HTTPException
 from src.common import DataPrepException, Strings, logger
 from src.common.schema import DataPrepResponse, VideoSummaryRequest
 from src.core.embedding import generate_text_embedding
-from src.core.util import get_minio_client
+from src.core.utils.common_utils import get_minio_client
 from src.core.validation import sanitize_model
 
 router = APIRouter(tags=["Document Processing APIs"])

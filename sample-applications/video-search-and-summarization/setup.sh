@@ -61,7 +61,7 @@ elif [ "$1" = "--down" ]; then
     if [ $? -ne 0 ]; then
         echo -e "${RED}ERROR: Failed to stop and remove containers.${NC}"
         return 1
-    fi
+    fi    
     echo -e "${GREEN}All containers were successfully stopped and removed. ${NC}"
     return 0
 fi
@@ -74,6 +74,7 @@ export APP_HOST_PORT=12345
 export HOST_IP=$(ip route get 1 | awk '{print $7}')  # Fetch the host IP
 # Add HOST_IP to no_proxy only if not already present
 [[ $no_proxy != *"${HOST_IP}"* ]] && export no_proxy="${no_proxy},${HOST_IP}"
+export no_proxy_env=${no_proxy}
 export TAG=${TAG:-latest}
 
 # If REGISTRY_URL is set, ensure it ends with a trailing slash
@@ -201,24 +202,101 @@ export VDMS_DATAPREP_HOST_PORT=6016
 export VDMS_DATAPREP_HOST=vdms-dataprep
 export VDMS_DATAPREP_ENDPOINT=http://$VDMS_DATAPREP_HOST:8000
 export VDMS_PIPELINE_MANAGER_UPLOAD=http://$PM_HOST:3000
+export DEFAULT_BUCKET_NAME="vdms-bucket"
 
-# env for vclip-embedding-ms
-export VCLIP_HOST_PORT=9777
-export VCLIP_MODEL=${VCLIP_MODEL}
-export QWEN_MODEL=${QWEN_MODEL}
-export VCLIP_START_OFFSET_SEC=0
-export VCLIP_CLIP_DURATION=15
-export VCLIP_NUM_FRAMES=64
-export VCLIP_DEVICE=${VCLIP_DEVICE:-CPU}
-export VCLIP_USE_OV=false
-# Set VCLIP_USE_OV to true if VCLIP_DEVICE is GPU
-if [ "$ENABLE_EMBEDDING_GPU" = true ]; then
-    export VCLIP_DEVICE=GPU
-    export VCLIP_USE_OV=true
-    echo -e "${BLUE}VCLIP-EMBEDDING-MS will use OpenVINO on GPU${NC}"
+# YOLOX model volume configuration for object detection
+export YOLOX_MODELS_VOLUME_NAME="vdms-yolox-models"
+export YOLOX_MODELS_MOUNT_PATH="/app/models/yolox"
+
+# Embedding processing mode settings (SDK vs API)
+# EMBEDDING_PROCESSING_MODE options:
+#   - "sdk": Use multimodal embedding service directly as SDK (optimized approach with better memory usage, default)
+#   - "api": Use HTTP API calls to multimodal embedding service (existing approach)
+export EMBEDDING_PROCESSING_MODE=${EMBEDDING_PROCESSING_MODE:-"sdk"}
+
+# Frame processing settings
+export FRAME_INTERVAL=${FRAME_INTERVAL:-15}
+export ENABLE_OBJECT_DETECTION=${ENABLE_OBJECT_DETECTION:-true}
+export DETECTION_CONFIDENCE=${DETECTION_CONFIDENCE:-0.85}
+export FRAMES_TEMP_DIR=${FRAMES_TEMP_DIR:-"/tmp/dataprep"}
+
+# Application configuration
+export VDMS_DATAPREP_LOG_LEVEL=${VDMS_DATAPREP_LOG_LEVEL:-INFO}
+export ALLOW_ORIGINS=${ALLOW_ORIGINS:-*}
+export ALLOW_METHODS=${ALLOW_METHODS:-*}
+export ALLOW_HEADERS=${ALLOW_HEADERS:-*}
+
+# env for multimodal-embedding-serving (unified embedding service)
+export EMBEDDING_SERVER_PORT=9777
+export EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME}  # Must be explicitly provided - no default
+export DEFAULT_START_OFFSET_SEC=0
+export DEFAULT_FRAME_INTERVAL=15
+export DEFAULT_NUM_FRAMES=64
+export EMBEDDING_USE_OV=true
+export OV_MODELS_DIR=${OV_MODELS_DIR:-"/app/ov_models"}
+export EMBEDDING_OV_MODELS_DIR=${OV_MODELS_DIR}
+export OV_PERFORMANCE_MODE=${OV_PERFORMANCE_MODE:-"LATENCY"}
+echo -e "${GREEN}OpenVINO performance mode: ${YELLOW}$OV_PERFORMANCE_MODE${NC}"
+
+# Device Configuration
+export DEVICE=${DEVICE:-"CPU"}
+export SDK_USE_OPENVINO=${SDK_USE_OPENVINO:-true}
+
+# Device Configuration Helper Functions
+configure_device() {
+    local device=${1:-"CPU"}
+    
+    echo -e "${BLUE}Configuring device for all processing components: ${YELLOW}${device}${NC}"
+    echo -e "${BLUE}   This affects: decord video processing, embedding model, and object detection${NC}"
+    
+    if [[ "${device}" == "GPU" ]]; then
+        echo -e "${YELLOW}⚙️  Setting up GPU configuration...${NC}"
+        
+        # Check if Intel GPU is available
+        if ! lspci | grep -i "vga.*intel" > /dev/null 2>&1; then
+            echo -e "${RED}Warning: No Intel GPU detected. GPU mode may not work properly.${NC}"
+        else
+            echo -e "${GREEN}Intel GPU detected${NC}"
+        fi
+        
+        # Check if /dev/dri exists for GPU access
+        if [[ ! -d "/dev/dri" ]]; then
+            echo -e "${RED}Warning: /dev/dri not found. GPU acceleration may not be available.${NC}"
+        else
+            echo -e "${GREEN}DRI devices found for GPU acceleration${NC}"
+        fi
+        
+        # Set GPU-specific configuration
+        export DEVICE="GPU"
+        export SDK_USE_OPENVINO=true  # Force OpenVINO for GPU mode
+        
+        echo -e "${GREEN}GPU mode configured for all components:${NC}"
+        echo -e "   • OpenVINO: ${YELLOW}enabled${NC} (required for GPU)"
+        echo -e "   • Processing Device: ${YELLOW}GPU${NC} (decord, embedding, detection)"
+        echo -e "   • Video decoding: ${YELLOW}GPU-accelerated${NC}"
+        
+    else
+        echo -e "${BLUE} CPU mode configured for all components${NC}"
+        export DEVICE="CPU"
+    fi
+}
+
+# Device mode selection
+if [[ "${DEVICE}" == "GPU" ]]; then
+    configure_device "GPU"
+else
+    configure_device "CPU"
 fi
-export VCLIP_HOST=vclip-embedding-ms
-export VCLIP_ENDPOINT=http://$VCLIP_HOST:8000/embeddings
+
+export MULTIMODAL_EMBEDDING_HOST=multimodal-embedding-serving
+export MULTIMODAL_EMBEDDING_ENDPOINT=http://$MULTIMODAL_EMBEDDING_HOST:8000/embeddings
+
+# Frame-to-Video Aggregation Settings for search-ms
+export AGGREGATION_ENABLED=${AGGREGATION_ENABLED:-true}
+export AGGREGATION_SEGMENT_DURATION=${AGGREGATION_SEGMENT_DURATION:-8}
+export AGGREGATION_MIN_GAP=${AGGREGATION_MIN_GAP:-5}
+export AGGREGATION_MAX_RESULTS=${AGGREGATION_MAX_RESULTS:-20}
+export AGGREGATION_INITIAL_K=${AGGREGATION_INITIAL_K:-1000}
 
 # env for video-search
 export VS_HOST_PORT=7890
@@ -291,20 +369,25 @@ if [ "$1" != "--down" ] && [ "$2" != "config" ]; then
         fi
     fi
     if [ "$1" != "--summary" ] || [ "$1" != "--all" ]; then
-        if [ -z "$VCLIP_MODEL" ]; then
-            echo -e "${RED}ERROR: VCLIP_MODEL is not set in your shell environment.${NC}"
-            return
-        elif [ "$VCLIP_MODEL" != "openai/clip-vit-base-patch32" ]; then
-            echo -e "${RED}ERROR: VCLIP_MODEL is set to an invalid value. Expected: 'openai/clip-vit-base-patch32'.${NC}"
+        if [ -z "$EMBEDDING_MODEL_NAME" ]; then
+            echo -e "${RED}ERROR: EMBEDDING_MODEL_NAME is not set in your shell environment.${NC}"
+            echo -e "${YELLOW}This is required for both SDK and API embedding modes${NC}"
             return
         fi
     fi
+    
+    # Validate embedding processing mode
+    if [[ "$EMBEDDING_PROCESSING_MODE" != "api" && "$EMBEDDING_PROCESSING_MODE" != "sdk" ]]; then
+        echo -e "${RED}Invalid EMBEDDING_PROCESSING_MODE: $EMBEDDING_PROCESSING_MODE${NC}"
+        echo -e "${YELLOW}Valid options are: 'api' or 'sdk'${NC}"
+        return
+    fi
     if [ "$1" = "--all" ]; then
-        if [ -z "$VCLIP_MODEL" ]; then
-            echo -e "${RED}ERROR: VCLIP_MODEL is not set in your shell environment.${NC}"
+        if [ -z "$EMBEDDING_MODEL_NAME" ]; then
+            echo -e "${RED}ERROR: EMBEDDING_MODEL_NAME is not set in your shell environment.${NC}"
             return
-        elif [ -z "$QWEN_MODEL" ] || [ "$QWEN_MODEL" != "Qwen/Qwen3-Embedding-0.6B" ]; then
-            echo -e "${RED}ERROR: QWEN_MODEL is either not set or set to invalid value in your shell environment.${NC}"
+        elif [ -z "$TEXT_EMBEDDING_MODEL_NAME" ]; then
+            echo -e "${RED}ERROR: TEXT_EMBEDDING_MODEL_NAME is not set in your shell environment.${NC}"
             return
         fi
     fi
@@ -319,6 +402,19 @@ fi
 # if only base environment variables are to be set without deploying application, exit here
 if [ "$1" = "--setenv" ]; then
     echo -e  "${BLUE}Done setting up all environment variables. ${NC}"
+    echo
+    echo -e "${GREEN}Key Configuration Summary:${NC}"
+    echo -e "  • Device: ${DEVICE:-auto}"
+    echo -e "  • Embedding Mode: ${EMBEDDING_PROCESSING_MODE:-sdk}"
+    echo -e "  • SDK OpenVINO: ${SDK_USE_OPENVINO:-true}"
+    if [ "$EMBEDDING_PROCESSING_MODE" = "sdk" ] && [ "$SDK_USE_OPENVINO" = "true" ]; then
+        echo -e "  • SDK Device: ${DEVICE:-CPU}"
+    fi
+    echo -e "  • Object Detection: ${ENABLE_OBJECT_DETECTION:-true}"
+    echo -e "  • Detection Confidence: ${DETECTION_CONFIDENCE:-0.85}"
+    echo -e "  • Frame Interval: ${FRAME_INTERVAL:-15} frames"
+    echo -e "  • DataPrep Log Level: ${VDMS_DATAPREP_LOG_LEVEL:-INFO}"
+    echo
     return 0
 fi
 
@@ -441,6 +537,50 @@ if [ "$1" = "--summary" ] || [ "$1" = "--all" ]; then
         export VS_INDEX_NAME="video_summary_embeddings" && \
         APP_COMPOSE_FILE="-f docker/compose.base.yaml -f docker/compose.summary.yaml -f docker/compose.search.yaml" && \
         echo -e  "${GREEN}Setting up both applications: Video Summarization and Video Search${NC}"
+    
+    # Create YOLOX models volume for all modes that include search functionality
+    if [ "$1" = "--all" ] && [ "$2" != "config" ]; then
+        if ! docker volume ls | grep -q "${YOLOX_MODELS_VOLUME_NAME}"; then
+            echo -e "${BLUE}Creating Docker volume for YOLOX models: ${YOLOX_MODELS_VOLUME_NAME}${NC}"
+            docker volume create "${YOLOX_MODELS_VOLUME_NAME}"
+            if [ $? = 0 ]; then
+                echo -e "${GREEN}YOLOX models volume created successfully${NC}"
+            else
+                echo -e "${RED}ERROR: Failed to create YOLOX models volume${NC}"
+                return 1
+            fi
+        else
+            echo -e "${GREEN}YOLOX models volume already exists: ${YOLOX_MODELS_VOLUME_NAME}${NC}"
+        fi
+
+        # Create ov-models volume for embedding models if it doesn't exist
+        if ! docker volume ls | grep -q "ov-models"; then
+            echo -e "${BLUE}Creating Docker volume for ov-models${NC}"
+            docker volume create ov-models
+            if [ $? = 0 ]; then
+                echo -e "${GREEN}ov-models volume created successfully${NC}"
+            else
+                echo -e "${RED}ERROR: Failed to create ov-models volume${NC}"
+                return 1
+            fi
+        else
+            echo -e "${GREEN}ov-models volume already exists${NC}"
+        fi
+
+        # Create data-prep volume if it doesn't exist
+        if ! docker volume ls | grep -q "data-prep"; then
+            echo -e "${BLUE}Creating Docker volume for data-prep${NC}"
+            docker volume create data-prep
+            if [ $? = 0 ]; then
+                echo -e "${GREEN}data-prep volume created successfully${NC}"
+            else
+                echo -e "${RED}ERROR: Failed to create data-prep volume${NC}"
+                return 1
+            fi
+        else
+            echo -e "${GREEN}data-prep volume already exists${NC}"
+        fi
+    fi
 
     # Check if the object detection model directory exists or whether docker-compose config is requested
     if [ ! -d "${OD_MODEL_OUTPUT_DIR}" ] && [ "$2" != "config" ]; then
@@ -547,6 +687,48 @@ elif [ "$1" = "--search" ]; then
     export APP_FEATURE_MUX="ATOMIC"
     export USE_ONLY_TEXT_EMBEDDINGS=False  # When only search is enabled, we use both text and video embeddings
     export VS_INDEX_NAME="video_frame_embeddings"  # DB Index or DB Collection name for video search standalone setup
+
+    # Create YOLOX models volume for object detection if it doesn't exist
+    if ! docker volume ls | grep -q "${YOLOX_MODELS_VOLUME_NAME}"; then
+        echo -e "${BLUE}Creating Docker volume for YOLOX models: ${YOLOX_MODELS_VOLUME_NAME}${NC}"
+        docker volume create "${YOLOX_MODELS_VOLUME_NAME}"
+        if [ $? = 0 ]; then
+            echo -e "${GREEN}YOLOX models volume created successfully${NC}"
+        else
+            echo -e "${RED}ERROR: Failed to create YOLOX models volume${NC}"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}YOLOX models volume already exists: ${YOLOX_MODELS_VOLUME_NAME}${NC}"
+    fi
+
+    # Create ov-models volume for embedding models if it doesn't exist
+    if ! docker volume ls | grep -q "ov-models"; then
+        echo -e "${BLUE}Creating Docker volume for ov-models${NC}"
+        docker volume create ov-models
+        if [ $? = 0 ]; then
+            echo -e "${GREEN}ov-models volume created successfully${NC}"
+        else
+            echo -e "${RED}ERROR: Failed to create ov-models volume${NC}"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}ov-models volume already exists${NC}"
+    fi
+
+    # Create data-prep volume if it doesn't exist
+    if ! docker volume ls | grep -q "data-prep"; then
+        echo -e "${BLUE}Creating Docker volume for data-prep${NC}"
+        docker volume create data-prep
+        if [ $? = 0 ]; then
+            echo -e "${GREEN}data-prep volume created successfully${NC}"
+        else
+            echo -e "${RED}ERROR: Failed to create data-prep volume${NC}"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}data-prep volume already exists${NC}"
+    fi
 
     # If search is enabled, set up video search only
     APP_COMPOSE_FILE="-f docker/compose.base.yaml -f docker/compose.search.yaml" 
