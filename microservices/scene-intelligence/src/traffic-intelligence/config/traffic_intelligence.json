@@ -45,8 +45,6 @@
   },
   "traffic": {
     "high_density_threshold": 10,
-    "analysis_window_seconds": 30,
-    "vlm_trigger_duration_seconds": 15,
-    "data_retention_minutes": 60
+    "analysis_window_seconds": 30
   }
 }

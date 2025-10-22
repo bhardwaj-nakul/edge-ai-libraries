@@ -10,7 +10,7 @@ secrets:
 services:
   # VLM OpenVINO Serving Service
   vlm-openvino-serving:
-    image: vlm-openvino-serving:latest
+    image: vlm-openvino-serving:order-vlm
     container_name: scene-intelligence-vlm-serving
     ports:
       - "${VLM_SERVICE_PORT:-9764}:8000"

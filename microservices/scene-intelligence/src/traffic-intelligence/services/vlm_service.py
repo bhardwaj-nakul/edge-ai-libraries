@@ -48,9 +48,8 @@ class VLMService:
         self.temperature = self.vlm_config.get("temperature", 0.1)
         self.top_p = self.vlm_config.get("top_p", 0.1)
         
-        # Traffic analysis settings
-        traffic_config = config_service.get_traffic_config()
-        self.high_density_threshold = traffic_config.get("high_density_threshold", 5)
+        # Store config service for dynamic threshold access
+        self.config_service = config_service
         
         # Cache for recent analyses
         self._analysis_cache: Dict[str, VLMAnalysisData] = {}
@@ -65,7 +64,7 @@ class VLMService:
         logger.info("Enhanced VLM service initialized", 
                    base_url=self.base_url,
                    model=self.model,
-                   threshold=self.high_density_threshold)
+                   threshold=self.config_service.get_high_density_threshold())
         
     def get_vlm_semaphore(self) -> asyncio.Semaphore:
         """Get the VLM semaphore for external use."""
@@ -97,13 +96,6 @@ class VLMService:
             except Exception as e:
                 logger.warning("Weather fetch failed during VLM analysis, using cached or default data", error=str(e))
                 self.weather_data = self.weather_data or self.weather_service.get_default_weather()
-
-            # Check if analysis is needed
-            if not self._should_analyze(traffic_snapshot):
-                logger.debug("Traffic analysis not needed", 
-                           total_count=traffic_snapshot.total_count,
-                           threshold=self.high_density_threshold)
-                return None
             
             # Create structured prompt with weather context
             prompt = self._create_structured_prompt(traffic_snapshot, self.weather_data)
@@ -208,13 +200,6 @@ class VLMService:
             logger.error("Non-blocking VLM analysis failed", error=str(e))
             return self._last_analysis  # Return cached result on error if available
     
-    def _should_analyze(self, traffic_snapshot: TrafficSnapshot) -> bool:
-        """Determine if VLM analysis should be performed."""
-        # Check if total traffic exceeds threshold
-        if traffic_snapshot.total_count < self.high_density_threshold:
-            return False
-        
-        return True
     
     def _create_structured_prompt(self, 
                                 traffic_snapshot: TrafficSnapshot,
@@ -233,9 +218,15 @@ class VLMService:
         timestamp = traffic_snapshot.timestamp.strftime("%H:%M:%S")
         
         # Traffic density information
+        high_density_threshold = self.config_service.get_high_density_threshold()
         density_info = []
         for direction, count in traffic_snapshot.directional_counts.items():
-            status = "HIGH TRAFFIC" if count >= (self.high_density_threshold * 2/3) else "NORMAL TRAFFIC"
+            if count  >= (high_density_threshold * 2/3):
+                status = "HIGH"
+            elif count >= (high_density_threshold * 1/3) and count < (high_density_threshold * 2/3):
+                status = "MODERATE"
+            else:
+                status = "NORMAL"
             density_info.append(f"{direction.title()}: {count} vehicles ({status})")
         
         density_summary = "\n".join(density_info)
@@ -513,9 +504,10 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             Basic VLMAnalysisData with extracted information
         """
         # Basic traffic analysis from data
+        high_density_threshold = self.config_service.get_high_density_threshold()
         high_density_directions = [
             direction for direction, count in traffic_snapshot.directional_counts.items()
-            if count >= self.high_density_threshold
+            if count >= high_density_threshold
         ]
         
         traffic_summary = f"High traffic detected in {len(high_density_directions)} direction(s) with total {traffic_snapshot.total_count} vehicles at the Intersection"
@@ -525,7 +517,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
         if high_density_directions:
             alert = VLMAlert(
                 alert_type=AlertType.CONGESTION,
-                level=AlertLevel.WARNING if traffic_snapshot.total_count > self.high_density_threshold * 2 else AlertLevel.INFO,
+                level=AlertLevel.WARNING if traffic_snapshot.total_count > high_density_threshold * 2 else AlertLevel.INFO,
                 description=f"High traffic density in {', '.join(high_density_directions)} direction(s)",
                 weather_related=weather_data.is_precipitation if weather_data else False
             )

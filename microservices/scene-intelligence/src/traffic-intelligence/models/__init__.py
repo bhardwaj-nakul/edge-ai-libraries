@@ -90,6 +90,9 @@ class IntersectionData:
     west_camera: int = 0
     total_density: int = 0
     
+    # Intersection-level traffic status (HIGH, MODERATE, NORMAL)
+    intersection_status: str = "NORMAL"
+    
     # Pedestrian counts by direction
     north_pedestrian: int = 0
     south_pedestrian: int = 0

@@ -35,13 +35,6 @@ class DataAggregatorService:
         """
         self.config = config_service
         self.vlm_service = vlm_service
-
-        self.high_density_threshold: int = self.config.get_high_density_threshold()
-
-        # traffic_config = config_service.get_traffic_config()
-        # self.data_retention_minutes = traffic_config.get("data_retention_minutes", 60)
-        # self.analysis_window_seconds = traffic_config.get("analysis_window_seconds", 30)
-        # self.vlm_trigger_duration = traffic_config.get("vlm_trigger_duration_seconds", 15)
         
         # Data storage - separate temporary and VLM-analyzed data
         self.temp_camera_data: Dict[str, CameraDataMessage] = {}     # direction -> latest temp data
@@ -53,32 +46,13 @@ class DataAggregatorService:
         self.vlm_analyzed_intersection_data: Optional[IntersectionData] = None
         self.vlm_analyzed_weather_data: Optional[WeatherData] = None
         
-        # Check if traffic warrants analysis
-        # self.traffic_history: deque = deque(maxlen=1000)  # Historical snapshots (VLM-analyzed only)
-        
         # Current state
         self.current_vlm_analysis: Optional[VLMAnalysisData] = None
         self.last_analysis_time: Optional[float] = 0.0
         
-        # Background tasks
-        # self.analysis_task: Optional[asyncio.Task] = None
-        # self.cleanup_task: Optional[asyncio.Task] = None
         
         logger.info("Data aggregator service initialized")
-    
-    # async def start_background_tasks(self):
-    #     """Start background analysis and cleanup tasks."""
-    #     self.analysis_task = asyncio.create_task(self._periodic_analysis())
-    #     self.cleanup_task = asyncio.create_task(self._periodic_cleanup())
-    #     logger.info("Background tasks started")
-    
-    # async def stop_background_tasks(self):
-    #     """Stop background tasks."""
-    #     if self.analysis_task:
-    #         self.analysis_task.cancel()
-    #     if self.cleanup_task:
-    #         self.cleanup_task.cancel()
-    #     logger.info("Background tasks stopped")
+
     
     async def process_camera_image(self, camera_image: CameraImage) -> None:
         """
@@ -157,6 +131,16 @@ class DataAggregatorService:
         total_count = north_count + south_count + east_count + west_count
         total_pedestrian_count = north_pedestrian + south_pedestrian + east_pedestrian + west_pedestrian
         
+        # Calculate intersection-level traffic status based on total density
+        high_density_threshold = self.config.get_high_density_threshold()
+        
+        if total_count >= (high_density_threshold * 2/3):
+            intersection_status = "HIGH"
+        elif total_count >= (high_density_threshold * 1/3):
+            intersection_status = "MODERATE"
+        else:
+            intersection_status = "NORMAL"
+        
         self.temp_intersection_data = IntersectionData(
             intersection_id=intersection_id,
             intersection_name=intersection_name,
@@ -168,6 +152,7 @@ class DataAggregatorService:
             east_camera=east_count,
             west_camera=west_count,
             total_density=total_count,
+            intersection_status=intersection_status,
             north_pedestrian=north_pedestrian,
             south_pedestrian=south_pedestrian,
             east_pedestrian=east_pedestrian,
@@ -181,6 +166,7 @@ class DataAggregatorService:
         
         logger.info("Temporary intersection data updated", 
                    total_density=total_count,
+                   intersection_status=intersection_status,
                    total_pedestrian_count=total_pedestrian_count,
                    north=north_count, south=south_count, 
                    east=east_count, west=west_count,
@@ -224,7 +210,6 @@ class DataAggregatorService:
     
 
         # Add to historical snapshots (only VLM-analyzed data)
-        # self.traffic_history.append(traffic_snapshot)
         
         logger.info("VLM-analyzed data saved",
                    total_density=traffic_snapshot.total_count,
@@ -235,47 +220,56 @@ class DataAggregatorService:
         """Check if VLM analysis should be triggered based on traffic conditions."""
         
         if not self.temp_intersection_data:
+            logger.debug("No intersection data available for analysis trigger check")
             return
         
-        if self.temp_intersection_data.total_density >= self.high_density_threshold:
+        # Get current threshold dynamically from config
+        high_density_threshold = self.config.get_high_density_threshold()
+        
+        logger.info("Checking if VLM analysis should be triggered",
+                   total_density=self.temp_intersection_data.total_density,
+                   threshold=high_density_threshold,
+                   last_analysis_time=self.last_analysis_time)
+        
+        # High traffic - always analyze
+        if self.temp_intersection_data.total_density >= high_density_threshold:
             logger.info("High traffic detected, triggering VLM analysis",
                        total_density=self.temp_intersection_data.total_density,
-                       threshold=self.high_density_threshold)
+                       threshold=high_density_threshold)
             await self._trigger_vlm_analysis()
             return
         
-        # # Check any single direction
-        # directional_counts = {
-        #     'north': self.temp_intersection_data.north_camera,
-        #     'south': self.temp_intersection_data.south_camera,
-        #     'east': self.temp_intersection_data.east_camera,
-        #     'west': self.temp_intersection_data.west_camera
-        # }
+        # Low traffic - check if enough time has passed since last analysis
+        if self.last_analysis_time == 0.0:
+            logger.info("No previous analysis, triggering VLM analysis for low traffic",
+                       total_density=self.temp_intersection_data.total_density)
+            await self._trigger_vlm_analysis()
+            return
         
-        # high_directions = [
-        #     direction for direction, count in directional_counts.items()
-        #     if count >= high_density_threshold
-        # ]
+        analysis_window_seconds = self.config.get_traffic_config().get("analysis_window_seconds", 30)
+        time_since_last_analysis = datetime.now().timestamp() - self.last_analysis_time
         
-        # if high_directions:
-        #     logger.info("High directional traffic detected, triggering VLM analysis",
-        #                high_directions=high_directions,
-        #                threshold=high_density_threshold)
-        #     await self._trigger_vlm_analysis()
-    
+        logger.info("Low traffic - checking analysis window",
+                   total_density=self.temp_intersection_data.total_density,
+                   time_since_last_analysis=time_since_last_analysis,
+                   analysis_window_seconds=analysis_window_seconds)
+        
+        if time_since_last_analysis >= analysis_window_seconds:
+            logger.info("Analysis window expired, triggering VLM analysis for low traffic",
+                       total_density=self.temp_intersection_data.total_density,
+                       time_since_last=time_since_last_analysis,
+                       window_seconds=analysis_window_seconds)
+            await self._trigger_vlm_analysis()
+        else:
+            logger.info("Skipping VLM analysis - within analysis window",
+                       total_density=self.temp_intersection_data.total_density,
+                       time_since_last=time_since_last_analysis,
+                       window_seconds=analysis_window_seconds)
+        
     async def _trigger_vlm_analysis(self) -> None:
         """Trigger VLM analysis with current traffic and weather data."""
         try:
             logger.info("Starting VLM analysis trigger")
-            # Update weather data
-            # try:
-            #     self.current_weather_data = await self.weather_service.get_current_weather()
-            # except Exception as e:
-            #     logger.warning("Weather fetch failed during VLM analysis, using cached data", error=str(e))
-            #     # Continue with cached weather data or None
-            
-            # Create traffic snapshot from temporary data
-            # async with self.vlm_service.get_vlm_semaphore():
             traffic_snapshot = self._create_temp_traffic_snapshot()
 
             if not traffic_snapshot:
@@ -321,13 +315,6 @@ class DataAggregatorService:
             return None
         
         try:
-            # Ensure we have current weather data
-            # if not self.current_weather_data:
-            #     try:
-            #         self.current_weather_data = await self.weather_service.get_current_weather()
-            #     except Exception as e:
-            #         logger.warning("Weather fetch failed, using cached or default data", error=str(e))
-            #         self.current_weather_data = self.current_weather_data or self._get_default_weather()
             
             # Prepare camera images for response (only VLM-analyzed images)
             camera_images_dict = {}
@@ -351,78 +338,12 @@ class DataAggregatorService:
                 response_age=(datetime.now(timezone.utc).timestamp() - self.last_analysis_time),
             )
             
-            # logger.info("VLM-analyzed traffic intelligence response created",
-            #            intersection_id=response.intersection_id,
-            #            total_density=self.vlm_analyzed_intersection_data.total_density,
-            #            total_pedestrian_count=self.vlm_analyzed_intersection_data.total_pedestrian_count,
-            #            camera_images_count=len(camera_images_dict),
-            #            alerts_count=len(self.current_vlm_analysis.alerts))
-            
             return response
             
         except Exception as e:
             logger.error("Failed to create traffic intelligence response", error=str(e))
             return None
     
-    # async def _periodic_analysis(self) -> None:
-    #     """Periodic background analysis task."""
-    #     while True:
-    #         try:
-    #             # Refresh weather data periodically
-    #             self.current_weather_data = await self.weather_service.get_current_weather()
-                
-    #             # Check if analysis is needed based on sustained traffic
-    #             await self._check_sustained_traffic_analysis()
-                
-    #             # Sleep for analysis window duration
-    #             await asyncio.sleep(self.analysis_window_seconds)
-                
-    #         except asyncio.CancelledError:
-    #             break
-    #         except Exception as e:
-    #             logger.error("Error in periodic analysis", error=str(e))
-    #             await asyncio.sleep(10)  # Wait before retrying
-    
-    # async def _check_sustained_traffic_analysis(self) -> None:
-    #     """Check for sustained high traffic patterns that warrant analysis."""
-    #     if len(self.traffic_history) < 3:  # Need some VLM-analyzed history
-    #         return
-        
-    #     # Look at recent VLM-analyzed snapshots
-    #     recent_snapshots = list(self.traffic_history)[-5:]  # Last 5 VLM-analyzed snapshots
-    #     high_density_threshold = self.config.get_high_density_threshold()
-        
-    #     # Check if traffic has been consistently high in analyzed data
-    #     high_traffic_count = sum(1 for snapshot in recent_snapshots 
-    #                            if snapshot.total_count >= high_density_threshold)
-        
-    #     if high_traffic_count >= 3:  # 3 out of 5 recent analyzed snapshots show high traffic
-    #         # Check if we haven't analyzed recently
-    #         if not self.last_analysis_time or \
-    #            (datetime.now(timezone.utc) - self.last_analysis_time).total_seconds() > self.vlm_trigger_duration * 2:
-    #             logger.info("Sustained high traffic detected in analyzed data, triggering analysis")
-    #             await self._trigger_vlm_analysis()
-    
-    # async def _periodic_cleanup(self) -> None:
-    #     """Periodic cleanup of old data."""
-    #     while True:
-    #         try:
-    #             await asyncio.sleep(300)  # Run every 5 minutes
-                
-    #             # Clean up old traffic history
-    #             cutoff_time = datetime.utcnow() - timedelta(minutes=self.data_retention_minutes)
-                
-    #             # Remove old snapshots
-    #             while self.traffic_history and self.traffic_history[0].timestamp < cutoff_time:
-    #                 self.traffic_history.popleft()
-                
-    #             logger.debug("Data cleanup completed", 
-    #                        history_size=len(self.traffic_history))
-                
-    #         except asyncio.CancelledError:
-    #             break
-    #         except Exception as e:
-    #             logger.error("Error in periodic cleanup", error=str(e))
 
     def _get_default_weather(self) -> WeatherData:
         """Get default weather data when none is available."""
@@ -436,30 +357,6 @@ class DataAggregatorService:
             is_mock=True
         )
     
-    # def _get_default_vlm_analysis(self) -> VLMAnalysisData:
-    #     """Get default VLM analysis when none is available."""
-    #     return VLMAnalysisData(
-    #         traffic_summary="Analysis pending",
-    #         alerts=[],
-    #         recommendations=[],
-    #         analysis_timestamp=datetime.utcnow()
-    #     )
-    
-    # def get_traffic_history(self, minutes: int = 30) -> List[TrafficSnapshot]:
-    #     """
-    #     Get VLM-analyzed traffic history for the specified time period.
-        
-    #     Args:
-    #         minutes: Number of minutes of history to return
-            
-    #     Returns:
-    #         List of VLM-analyzed traffic snapshots
-    #     """
-    #     cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
-    #     return [
-    #         snapshot for snapshot in self.traffic_history
-    #         if snapshot.timestamp >= cutoff_time
-    #     ]
     
     def get_service_status(self) -> Dict[str, Any]:
         """Get current service status and statistics."""

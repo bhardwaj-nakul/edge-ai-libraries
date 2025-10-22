@@ -288,7 +288,6 @@ Create `config/traffic_intelligence.json`:
   "traffic": {
     "high_density_threshold": 5,
     "analysis_window_seconds": 30,
-    "vlm_trigger_duration_seconds": 15
   }
 }
 ```

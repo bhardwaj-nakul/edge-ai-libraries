@@ -539,17 +539,6 @@ class MQTTService:
                 timestamp=data_timestamp,
             )
             
-
-            # Print detailed object information
-            # if objects:
-            #     if 'vehicle' in objects:
-            #         for i, vehicle in enumerate(objects['vehicle']):
-            #             conf = vehicle.get('confidence', 0)
-            #             bbox = vehicle.get('bounding_box_px', {})
-            #     if 'pedestrian' in objects:
-            #         for i, pedestrian in enumerate(objects['pedestrian']):
-            #             conf = pedestrian.get('confidence', 0)
-            #             bbox = pedestrian.get('bounding_box_px', {})
                        
             # Send to data aggregator for processing
             await self.data_aggregator.process_camera_data(camera_message)

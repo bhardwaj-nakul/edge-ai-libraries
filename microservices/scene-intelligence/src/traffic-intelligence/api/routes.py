@@ -68,6 +68,7 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "east_camera": traffic_response.data.east_camera,
                 "west_camera": traffic_response.data.west_camera,
                 "total_density": traffic_response.data.total_density,
+                "intersection_status": traffic_response.data.intersection_status,
                 "north_pedestrian": traffic_response.data.north_pedestrian,
                 "south_pedestrian": traffic_response.data.south_pedestrian,
                 "east_pedestrian": traffic_response.data.east_pedestrian,
@@ -267,13 +268,19 @@ async def update_threshold(
     try:
         config_service = get_config_service(request)
         
+        # Get old threshold for logging
+        old_threshold = config_service.get_high_density_threshold()
+        
         # Update configuration
         config_service.update_config("traffic.high_density_threshold", threshold)
         
-        logger.info("High density threshold updated", threshold=threshold)
+        logger.info("High density threshold updated", 
+                   old_threshold=old_threshold,
+                   new_threshold=threshold)
         
         return {
             "message": "Threshold updated successfully",
+            "old_threshold": old_threshold,
             "new_threshold": threshold,
             "timestamp": datetime.utcnow().isoformat()
         }

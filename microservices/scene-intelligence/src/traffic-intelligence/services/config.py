@@ -103,10 +103,6 @@ class ConfigService:
             if "traffic" not in config:
                 config["traffic"] = {}
             config["traffic"]["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
-        if os.getenv("DATA_RETENTION_HOURS"):
-            if "traffic" not in config:
-                config["traffic"] = {}
-            config["traffic"]["data_retention_minutes"] = int(os.getenv("DATA_RETENTION_HOURS")) * 60
                
         return config
 
