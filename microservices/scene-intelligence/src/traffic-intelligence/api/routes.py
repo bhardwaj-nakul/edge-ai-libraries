@@ -172,65 +172,6 @@ async def get_current_weather(request: Request) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-
-@router.post("/analysis/trigger")
-async def trigger_analysis(request: Request) -> Dict[str, Any]:
-    """Manually trigger VLM traffic analysis."""
-    try:
-        data_aggregator = get_data_aggregator(request)
-        
-        # Trigger analysis
-        await data_aggregator._trigger_vlm_analysis()
-        
-        return {
-            "message": "Analysis triggered successfully",
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error("Failed to trigger analysis", error=str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/status")
-async def get_service_status(request: Request) -> Dict[str, Any]:
-    """Get service status and statistics."""
-    try:
-        data_aggregator = get_data_aggregator(request)
-        config_service = get_config_service(request)
-        vlm_service = get_vlm_service(request)
-        
-        # Get MQTT status if available
-        mqtt_status = {}
-        if hasattr(request.app.state, 'mqtt'):
-            mqtt_service = request.app.state.mqtt
-            mqtt_status = mqtt_service.get_connection_status()
-        
-        # Get service status
-        service_status = data_aggregator.get_service_status()
-        
-        # Get VLM service status
-        vlm_status = vlm_service.get_service_status()
-        
-        return {
-            "service": "traffic-intelligence",
-            "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "intersection": {
-                "id": config_service.get_intersection_id(),
-                "name": config_service.get_intersection_name(),
-                "coordinates": config_service.get_intersection_coordinates()
-            },
-            "traffic": service_status,
-            "vlm": vlm_status,
-            "mqtt": mqtt_status
-        }
-        
-    except Exception as e:
-        logger.error("Failed to get service status", error=str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
 @router.get("/config")
 async def get_service_config(request: Request) -> Dict[str, Any]:
     """Get service configuration (excluding sensitive data)."""
