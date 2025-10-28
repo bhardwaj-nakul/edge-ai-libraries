@@ -249,6 +249,10 @@ async def update_fire_marks_setting(
                    old_setting=old_setting,
                    new_setting=fire_marks)
         
+        weather_service = get_weather_service(request)
+        weather_service.clear_cache()
+        await weather_service.get_current_weather(force_refresh=True)
+
         return {
             "message": "Fire marks setting updated successfully",
             "old_setting": old_setting,

@@ -515,11 +515,17 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
         # Create basic alert
         alerts = []
         if high_density_directions:
+            weather_impact = weather_data and (weather_data.is_precipitation or weather_data.is_roadside_fire)
+            description = f"High traffic density in {', '.join(high_density_directions)} direction(s)."
+            
+            if weather_data and weather_data.is_roadside_fire:
+                description += " Active roadside fires reduced visibility and slowed traffic."
+
             alert = VLMAlert(
                 alert_type=AlertType.CONGESTION,
                 level=AlertLevel.WARNING if traffic_snapshot.total_count > high_density_threshold * 2 else AlertLevel.INFO,
-                description=f"High traffic density in {', '.join(high_density_directions)} direction(s)",
-                weather_related=weather_data.is_precipitation if weather_data else False
+                description=description,
+                weather_related=weather_impact
             )
             alerts.append(alert)
         

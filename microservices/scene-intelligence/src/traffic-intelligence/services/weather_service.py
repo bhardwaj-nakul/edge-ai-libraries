@@ -125,42 +125,36 @@ class WeatherService:
         """
         logger.info("Getting current weather data", force_refresh=force_refresh, has_cached=self._cached_weather is not None, use_mock=self.use_mock)
         
-        # If mock mode is enabled, return mock data from file
-        if self.use_mock:
-            if self.config_service.get_weather_config().get("fire_marks", False):
-                logger.info("Using fire marks mock weather data")
-                return self._load_mock_weather_from_file(weather_file=self.mock_fire_data_file)
-            else:
-                logger.info("Using mock weather data from file", file=self.mock_data_file)
-                return self._load_mock_weather_from_file()
-        
         if not force_refresh and self._is_cache_valid():
             logger.debug("Returning cached weather data")
             self._cached_weather.is_cached = True
             return self._cached_weather
-        
-        # Get intersection coordinates
-        lat, lon = self.config_service.get_intersection_coordinates()
-        logger.info("Fetching weather for coordinates", lat=lat, lon=lon)
-        
-        try:
+
+        if self.use_mock:
+            weather_file = self.mock_fire_data_file if self.config_service.get_weather_config().get("fire_marks", False) else self.mock_data_file
+            logger.info("Using mock weather data", file=weather_file, fire_marks=weather_file == self.mock_fire_data_file)
+            weather_data = self._load_mock_weather_from_file(weather_file)
+        else:
+            # Get intersection coordinates and fetch live weather data
+            lat, lon = self.config_service.get_intersection_coordinates()
+            logger.info("Fetching weather for coordinates", lat=lat, lon=lon)
+            
             weather_data = await self._fetch_weather_data(lat, lon)
-            if weather_data:
-                # Update cache
-                self._cached_weather = weather_data
-                self._cache_timestamp = datetime.now(timezone.utc)
-                logger.info("Weather data updated", 
-                           temperature=weather_data.temperature,
-                           conditions=weather_data.detailed_forecast,
-                           precipitation=weather_data.is_precipitation)
-                return weather_data
-            else:
-                logger.warning("Failed to fetch weather data")
-                return self._cached_weather  # Return cached data if available
-                
-        except Exception as e:
-            logger.error("Error fetching weather data", error=str(e))
-            return self._cached_weather  # Return cached data on error
+            if not weather_data:
+                logger.warning("Failed to fetch weather data, returning cached if available")
+                return self._cached_weather
+
+        # Update cache
+        self._cached_weather = weather_data
+        self._cache_timestamp = datetime.now(timezone.utc)
+        
+        if not self.use_mock:
+            logger.info("Weather data updated", 
+                       temperature=weather_data.temperature,
+                       conditions=weather_data.detailed_forecast,
+                       precipitation=weather_data.is_precipitation)
+        
+        return weather_data
     
     async def _fetch_weather_data(self, lat: float, lon: float) -> Optional[WeatherData]:
         """
@@ -413,3 +407,7 @@ class WeatherService:
         age = datetime.now(timezone.utc) - self._cache_timestamp
         return age < self.cache_duration
     
+    def clear_cache(self) -> None:
+        """Clear the weather cache to force a refresh on next request."""
+        self._cached_weather = None
+        self._cache_timestamp = None

@@ -44,6 +44,7 @@ class WeatherData:
     start_time: Optional[str] = None   # Start time of the forecast period
     end_time: Optional[str] = None     # End time of the forecast period
     is_cached: bool = False          # Whether this data was served from cache
+    is_roadside_fire: Optional[bool] = False       # Whether there are roadside fires
 
 
 @dataclass
