@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import structlog
 
-from models import WeatherData
+from models import WeatherData, WeatherType
 from .config import ConfigService
 
 
@@ -44,9 +44,20 @@ class WeatherService:
         
         # Mock mode configuration
         self.use_mock = self.weather_config.get("use_mock", False)
-        self.mock_data_file = "config/weather/clear_weather.json"
-        self.mock_fire_data_file = "config/weather/roadside_fires.json"
-        
+        self.mock_data_file = {
+            "clear": "config/weather/clear_weather.json",
+            "fires": "config/weather/roadside_fires.json",
+            "storm": "config/weather/stormy_weather.json",
+            "flood": "config/weather/flood_conditions.json"
+        }
+
+        self.weather_descriptions = {
+            "clear": "Clear weather conditions with optimal driving visibility and normal traffic flow.",
+            "fires": "Active roadside fires causing reduced visibility, lane closures, and traffic delays.",
+            "storm": "Severe storm conditions with heavy rain, strong winds causing hazardous driving.",
+            "flood": "Flooding on roadways forcing detours, road closures, and severe traffic disruptions."
+        }
+
         logger.info("Weather service initialized", 
                    api_base_url=self.api_base_url,
                    cache_duration_minutes=self.cache_duration.total_seconds() / 60,
@@ -131,8 +142,9 @@ class WeatherService:
             return self._cached_weather
 
         if self.use_mock:
-            weather_file = self.mock_fire_data_file if self.config_service.get_weather_config().get("fire_marks", False) else self.mock_data_file
-            logger.info("Using mock weather data", file=weather_file, fire_marks=weather_file == self.mock_fire_data_file)
+            weather_type = WeatherType(self.config_service.get_weather_config().get("weather_type", "clear"))
+            weather_file = self.get_weather_config_file(weather_type)
+            logger.info(f"Using {weather_type} mock weather data", file=weather_file)
             weather_data = self._load_mock_weather_from_file(weather_file)
         else:
             # Get intersection coordinates and fetch live weather data
@@ -411,3 +423,19 @@ class WeatherService:
         """Clear the weather cache to force a refresh on next request."""
         self._cached_weather = None
         self._cache_timestamp = None
+
+    def get_weather_description(self, weather_type: WeatherType) -> str:
+        return self.weather_descriptions.get(weather_type.value, "Unknown weather conditions")
+    
+    def is_valid_intersection_weather(self, weather_type: WeatherType) -> bool:
+        intersections_config = self.config_service.get_intersections_config()
+        intersection_name = self.config_service.get_intersection_name()
+        if intersection_name in intersections_config.get(weather_type.value, []):
+            return True
+        logger.info("Weather type not valid for intersection", weather_type=weather_type.value, intersection=intersection_name)
+        return False
+    
+    def get_weather_config_file(self, weather_type: WeatherType) -> str:
+        if self.is_valid_intersection_weather(weather_type):
+            return self.mock_data_file.get(weather_type.value)
+        return self.mock_data_file["clear"]

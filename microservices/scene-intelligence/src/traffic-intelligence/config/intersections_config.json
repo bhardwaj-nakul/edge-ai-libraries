@@ -1,0 +1,19 @@
+{
+    "fires": [
+        "Intersection-Demo-1",
+        "Intersection-Demo-3",
+        "Intersection-Demo-5",
+        "Intersection-Demo"
+    ],
+    "storm": [
+        "Intersection-Demo-2",
+        "Intersection-Demo-4",
+        "Intersection-Demo-6"
+        
+    ],
+    "flood": [
+        "Intersection-Demo-7",
+        "Intersection-Demo-8",
+        "Intersection-Demo-9"
+    ]
+}

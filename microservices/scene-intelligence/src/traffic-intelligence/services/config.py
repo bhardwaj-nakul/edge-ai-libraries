@@ -19,6 +19,7 @@ class ConfigService:
     def __init__(self):
         """Initialize configuration service."""
         self.config = self._load_config()
+        self.intersections_config = self._load_intersections_config()
         logger.info("Configuration service initialized", 
                    intersection_id=self.get_intersection_id())
     
@@ -105,6 +106,19 @@ class ConfigService:
             config["traffic"]["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
                
         return config
+    
+    def _load_intersections_config(self) -> dict:
+        """Load intersections configuration from file."""
+        intersections_file = os.getenv("INTERSECTIONS_CONFIG_FILE", "config/intersections_config.json")
+        if os.path.exists(intersections_file):
+            try:
+                with open(intersections_file, 'r') as f:
+                    intersections_config = json.load(f)
+                logger.info("Loaded intersections configuration", path=intersections_file)
+                return intersections_config
+            except Exception as e:
+                logger.warning("Failed to load intersections config file", path=intersections_file, error=str(e))
+        return {}
 
     
     def get_intersection_id(self) -> str:
@@ -175,3 +189,7 @@ class ConfigService:
         # Set the value
         config_ref[keys[-1]] = value
         logger.info("Configuration updated", key=key, value=value)
+    
+    def get_intersections_config(self) -> dict:
+        """Get the intersections configuration."""
+        return self.intersections_config

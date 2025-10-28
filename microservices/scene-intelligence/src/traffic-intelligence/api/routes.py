@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from services.data_aggregator import DataAggregatorService
+from models import WeatherType
 
 
 logger = structlog.get_logger(__name__)
@@ -230,36 +231,36 @@ async def update_threshold(
         logger.error("Failed to update threshold", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.put("/config/weather/fire-marks")
-async def update_fire_marks_setting(
+@router.put("/config/weather")
+async def update_weather_status(
     request: Request,
-    fire_marks: bool = Query(description="Enable or disable fire marks in weather data")
+    weather_type: WeatherType = Query(description="New weather status from available types")
 ) -> Dict[str, Any]:
-    """Update fire marks setting for weather data."""
+    """Update weather status for weather data."""
     try:
         config_service = get_config_service(request)
         
         # Get old setting for logging
-        old_setting = config_service.get_weather_config().get("fire_marks", False)
+        old_setting = config_service.get_weather_config().get("weather_type")
         
         # Update configuration
-        config_service.update_config("weather.fire_marks", fire_marks)
+        config_service.update_config("weather.weather_type", weather_type.value)
         
-        logger.info("Fire marks setting updated", 
+        logger.info("Weather type updated", 
                    old_setting=old_setting,
-                   new_setting=fire_marks)
+                   new_setting=weather_type.value)
         
         weather_service = get_weather_service(request)
         weather_service.clear_cache()
         await weather_service.get_current_weather(force_refresh=True)
 
         return {
-            "message": "Fire marks setting updated successfully",
+            "message": "Weather type updated successfully",
             "old_setting": old_setting,
-            "new_setting": fire_marks,
+            "new_setting": weather_type.value,
             "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
-        logger.error("Failed to update fire marks setting", error=str(e))
+        logger.error("Failed to update weather status", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
