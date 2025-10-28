@@ -25,7 +25,7 @@ class WeatherService:
     
     def __init__(self, config_service: ConfigService):
         """Initialize weather service with configuration."""
-        self.config = config_service
+        self.config_service = config_service
         self.weather_config = config_service.get_weather_config()
         
         # Weather API configuration
@@ -44,7 +44,8 @@ class WeatherService:
         
         # Mock mode configuration
         self.use_mock = self.weather_config.get("use_mock", False)
-        self.mock_data_file = "config/weather.json"
+        self.mock_data_file = "config/weather/clear_weather.json"
+        self.mock_fire_data_file = "config/weather/roadside_fires.json"
         
         logger.info("Weather service initialized", 
                    api_base_url=self.api_base_url,
@@ -126,8 +127,12 @@ class WeatherService:
         
         # If mock mode is enabled, return mock data from file
         if self.use_mock:
-            logger.info("Using mock weather data from file", file=self.mock_data_file)
-            return self._load_mock_weather_from_file()
+            if self.config_service.get_weather_config().get("fire_marks", False):
+                logger.info("Using fire marks mock weather data")
+                return self._load_mock_weather_from_file(weather_file=self.mock_fire_data_file)
+            else:
+                logger.info("Using mock weather data from file", file=self.mock_data_file)
+                return self._load_mock_weather_from_file()
         
         if not force_refresh and self._is_cache_valid():
             logger.debug("Returning cached weather data")
@@ -135,7 +140,7 @@ class WeatherService:
             return self._cached_weather
         
         # Get intersection coordinates
-        lat, lon = self.config.get_intersection_coordinates()
+        lat, lon = self.config_service.get_intersection_coordinates()
         logger.info("Fetching weather for coordinates", lat=lat, lon=lon)
         
         try:
@@ -239,12 +244,20 @@ class WeatherService:
         except Exception as e:
             logger.error("Failed to fetch weather data", error=str(e))
             return self._load_mock_weather_from_file()
-    
-    def _load_mock_weather_from_file(self) -> WeatherData:
-        """Load mock weather data from weather.json file."""
+
+    def _load_mock_weather_from_file(self, weather_file=None) -> WeatherData:
+        """Load mock weather data from json file.
+        
+        Args:
+            weather_file: Path to mock weather data file
+        Returns:
+            WeatherData object with mock data
+        """
+        if not weather_file:
+            weather_file = self.mock_data_file
         try:
-            if os.path.exists(self.mock_data_file):
-                with open(self.mock_data_file, 'r') as f:
+            if os.path.exists(weather_file):
+                with open(weather_file, 'r') as f:
                     data = json.load(f)
                 
                 # Parse fetched_at if it's a string
@@ -281,10 +294,10 @@ class WeatherService:
                            conditions=weather_data.detailed_forecast)
                 return weather_data
             else:
-                logger.warning("Mock weather file not found, using fallback", file=self.mock_data_file)
+                logger.warning("Mock weather file not found, using fallback", file=weather_file)
                 return self.get_default_weather()
         except Exception as e:
-            logger.error("Error loading mock weather data from file", error=str(e), file=self.mock_data_file)
+            logger.error("Error loading mock weather data from file", error=str(e), file=weather_file)
             return self.get_default_weather()
     
     def get_default_weather(self) -> WeatherData:

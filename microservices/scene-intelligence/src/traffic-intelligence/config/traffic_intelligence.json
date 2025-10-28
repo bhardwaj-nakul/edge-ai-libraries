@@ -33,7 +33,8 @@
   "weather": {
     "api_base_url": "https://api.weather.gov",
     "user_agent": "traffic-intelligence (admin@example.com)",
-    "cache_duration_minutes": 11
+    "cache_duration_minutes": 11,
+    "fire_marks": false
   },
   "vlm": {
     "base_url": "http://vlm-openvino-serving:8000",

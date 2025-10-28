@@ -229,3 +229,33 @@ async def update_threshold(
     except Exception as e:
         logger.error("Failed to update threshold", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/config/weather/fire-marks")
+async def update_fire_marks_setting(
+    request: Request,
+    fire_marks: bool = Query(description="Enable or disable fire marks in weather data")
+) -> Dict[str, Any]:
+    """Update fire marks setting for weather data."""
+    try:
+        config_service = get_config_service(request)
+        
+        # Get old setting for logging
+        old_setting = config_service.get_weather_config().get("fire_marks", False)
+        
+        # Update configuration
+        config_service.update_config("weather.fire_marks", fire_marks)
+        
+        logger.info("Fire marks setting updated", 
+                   old_setting=old_setting,
+                   new_setting=fire_marks)
+        
+        return {
+            "message": "Fire marks setting updated successfully",
+            "old_setting": old_setting,
+            "new_setting": fire_marks,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error("Failed to update fire marks setting", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
