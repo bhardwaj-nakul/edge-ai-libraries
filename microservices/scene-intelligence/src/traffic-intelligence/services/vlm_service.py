@@ -517,7 +517,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
         if high_density_directions:
             weather_impact = weather_data and weather_data.weather_type in {WeatherType.FIRES, WeatherType.STORM, WeatherType.FLOOD}
             description = f"High traffic density in {', '.join(high_density_directions)} direction(s)."
-            
+
             if weather_impact:
                 description = self.weather_service.get_weather_description(weather_data.weather_type)
 

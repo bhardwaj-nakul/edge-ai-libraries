@@ -232,35 +232,34 @@ async def update_threshold(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/config/weather")
-async def update_weather_status(
+async def update_weather_markers(
     request: Request,
-    weather_type: WeatherType = Query(description="New weather status from available types")
+    enable_markers: bool = Query(description="Enable or disable weather markers"),
 ) -> Dict[str, Any]:
-    """Update weather status for weather data."""
+    """Update weather markers configuration."""
     try:
         config_service = get_config_service(request)
-        
+
         # Get old setting for logging
-        old_setting = config_service.get_weather_config().get("weather_type")
-        
+        old_setting = config_service.get_weather_config().get("enable_markers")
+
         # Update configuration
-        config_service.update_config("weather.weather_type", weather_type.value)
-        
-        logger.info("Weather type updated", 
+        config_service.update_config("weather.enable_markers", enable_markers)
+
+        logger.info("Weather markers updated",
                    old_setting=old_setting,
-                   new_setting=weather_type.value)
-        
+                   new_setting=enable_markers)
+
         weather_service = get_weather_service(request)
-        weather_service.clear_cache()
         await weather_service.get_current_weather(force_refresh=True)
 
         return {
-            "message": "Weather type updated successfully",
+            "message": "Weather markers updated successfully",
             "old_setting": old_setting,
-            "new_setting": weather_type.value,
+            "new_setting": enable_markers,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
-        logger.error("Failed to update weather status", error=str(e))
+        logger.error("Failed to update weather markers", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")

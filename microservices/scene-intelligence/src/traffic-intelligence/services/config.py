@@ -19,7 +19,7 @@ class ConfigService:
     def __init__(self):
         """Initialize configuration service."""
         self.config = self._load_config()
-        self.intersections_config = self._load_intersections_config()
+        self.intersections_weather_map = self._load_intersections_weather_map()
         logger.info("Configuration service initialized", 
                    intersection_id=self.get_intersection_id())
     
@@ -69,6 +69,11 @@ class ConfigService:
                 config["weather"] = {}
             config["weather"]["use_mock"] = os.getenv("WEATHER_MOCK").lower() in ["true", "1", "yes"]
         
+        if os.getenv("ENABLE_WEATHER_MARKERS"):
+            if "weather" not in config:
+                config["weather"] = {}
+            config["weather"]["enable_markers"] = os.getenv("ENABLE_WEATHER_MARKERS").lower() in ["true", "1", "yes"]
+
         # VLM configuration
         if os.getenv("VLM_BASE_URL"):
             if "vlm" not in config:
@@ -106,16 +111,16 @@ class ConfigService:
             config["traffic"]["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
                
         return config
-    
-    def _load_intersections_config(self) -> dict:
+
+    def _load_intersections_weather_map(self) -> dict:
         """Load intersections configuration from file."""
-        intersections_file = os.getenv("INTERSECTIONS_CONFIG_FILE", "config/intersections_config.json")
+        intersections_file = os.getenv("INTERSECTIONS_WEATHER_MAP_FILE", "config/intersections_weather_map.json")
         if os.path.exists(intersections_file):
             try:
                 with open(intersections_file, 'r') as f:
-                    intersections_config = json.load(f)
+                    intersections_weather_map = json.load(f)
                 logger.info("Loaded intersections configuration", path=intersections_file)
-                return intersections_config
+                return intersections_weather_map
             except Exception as e:
                 logger.warning("Failed to load intersections config file", path=intersections_file, error=str(e))
         return {}
@@ -189,7 +194,7 @@ class ConfigService:
         # Set the value
         config_ref[keys[-1]] = value
         logger.info("Configuration updated", key=key, value=value)
-    
-    def get_intersections_config(self) -> dict:
+
+    def get_intersections_weather_map(self) -> dict:
         """Get the intersections configuration."""
-        return self.intersections_config
+        return self.intersections_weather_map
