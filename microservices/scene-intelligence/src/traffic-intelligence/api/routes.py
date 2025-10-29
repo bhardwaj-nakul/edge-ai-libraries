@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from services.data_aggregator import DataAggregatorService
-from models import WeatherType
 
 
 logger = structlog.get_logger(__name__)

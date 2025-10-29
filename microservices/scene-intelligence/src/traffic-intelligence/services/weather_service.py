@@ -246,7 +246,7 @@ class WeatherService:
         """Load mock weather data from json file.
 
         Args:
-            weather_file: Path to mock weather data file
+            weather_type: Type of weather to load from mock data
         Returns:
             WeatherData object with mock data
         """
@@ -256,7 +256,6 @@ class WeatherService:
             if os.path.exists(self.mock_data_file):
                 with open(self.mock_data_file, 'r') as f:
                     data = json.load(f)
-
                 data = data.get(weather_type.value, {})
 
                 # Parse fetched_at if it's a string
@@ -286,7 +285,8 @@ class WeatherService:
                     relative_humidity=data.get("relative_humidity"),
                     is_daytime=data.get("is_daytime"),
                     start_time=data.get("start_time"),
-                    end_time=data.get("end_time")
+                    end_time=data.get("end_time"),
+                    weather_type=weather_type.value
                 )
                 logger.info("Loaded mock weather data from file", 
                            temperature=weather_data.temperature,
