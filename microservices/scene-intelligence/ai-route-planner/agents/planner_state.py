@@ -39,3 +39,4 @@ class RoutePlannerState(TypedDict):
     ]  # List of Route optimizers to be applied
     live_traffic: LiveTrafficState  # Details of live traffic recieved during real-time route optimization
     is_sub_optimal: bool  # Flag to indicate if the optimal route is sub-optimal
+    intersection_list: dict[str, GeoCoordinates]  # Map of all available intersection names to their coordinates

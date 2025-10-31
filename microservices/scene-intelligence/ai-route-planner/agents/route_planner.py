@@ -18,9 +18,10 @@ from controllers import (
     RouteStatusInterface,
     ThresholdController
 )
-from schema import RouteCondition
+from schema import GeoCoordinates, RouteCondition
 from utils.gpx_parser import MapDataParser
 from utils.helper import get_all_available_route_files as route_files
+from utils.helper import get_intersection_list
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -197,6 +198,10 @@ class RoutePlanner:
         live_traffic_controller = LiveTrafficController()
         live_route_status = live_traffic_controller.fetch_route_status()
 
+        # Get List of all available intersections for routing
+        intersection_list: dict[str, GeoCoordinates] = get_intersection_list(live_route_status)
+        logger.debug(f"Available Intersections: {intersection_list}")
+
         # Iterate till no new routes are available
         while True:
             route_not_optimal: bool = False
@@ -293,6 +298,7 @@ class RoutePlanner:
             "optimal_route": sub_optimal_route or optimal_route_state,
             "live_traffic": live_traffic_state,
             "is_sub_optimal": bool(sub_optimal_route),
+            "intersection_list": intersection_list,
         }
 
 

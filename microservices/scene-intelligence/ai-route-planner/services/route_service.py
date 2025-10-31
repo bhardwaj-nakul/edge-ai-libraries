@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from agents import RoutePlanner, RoutePlannerState
 from config import (
@@ -227,16 +227,22 @@ class RouteService:
         intersection_images: Optional[dict[str, str]] = None
         if live_traffic := self.route_state.get("live_traffic", {}):
             intersection_images = live_traffic.get("intersection_images")
-            incident_location = live_traffic.get("location_coordinates")
+            incident_location = {
+                "name": live_traffic.get("intersection_name"),
+                "coords": live_traffic.get("location_coordinates"),
+            }
+
+        intersection_list: list[GeoCoordinates] = self.route_state.get("intersection_list", [])
+        logger.info(f"Total {len(intersection_list)} intersections available for routing.")
 
         # Create alternate route map for the alternate route
-        alternate_map = self.create_route_map(start_location, end_location, incident_location)
+        alternate_map = self.create_route_map(start_location, end_location, intersection_list, incident_location)
         distance = self.route_state["optimal_route"]["distance"] if self.route_state else 0.0
         is_sub_optimal = self.route_state.get("is_sub_optimal") if self.route_state else False
 
         return next_data_source, alternate_planning_reason, distance, is_sub_optimal, alternate_map, intersection_images
 
-    def create_route_map(self, start_location: str, end_location: str, incident_location: Optional[GeoCoordinates] = None) -> str:
+    def create_route_map(self, start_location: str, end_location: str, intersection_list: Optional[list[GeoCoordinates]] = None, incident_location: Optional[dict[str, Any]] = None) -> str:
         """Create a complete route map with all routes and markers"""
         # Get coordinates for the selected locations
         start_coords = self.location_coordinates.get(start_location)
@@ -312,9 +318,19 @@ class RouteService:
             map_obj, start_location, end_location, start_coords, end_coords
         )
 
+        # Add intersection markers if available
+        if intersection_list:
+            # Convert the dict intersection_list to a list of tuples with intersection name and coordinates
+            intersection_coords: list[tuple[str, float, float]] = [
+                (name, coords.latitude, coords.longitude)
+                for name, coords in intersection_list.items()
+            ]
+            self.map_creator.add_intersection_marker(map_obj, intersection_coords)
+
+        # Add incident marker if available
         if incident_location:
             self.map_creator.add_incident_marker(
-                map_obj, incident_location.latitude, incident_location.longitude
+                map_obj, incident_location["name"], incident_location["coords"].latitude, incident_location["coords"].longitude
             )
 
         # Add waypoint markers for longer routes using trackpoints
