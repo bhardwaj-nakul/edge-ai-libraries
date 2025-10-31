@@ -288,7 +288,8 @@ class WeatherService:
                     end_time=data.get("end_time"),
                     weather_type=weather_type.value
                 )
-                logger.info("Loaded mock weather data from file", 
+                logger.info("Loaded mock weather data from file",
+                            weather_type=weather_type.value,
                            temperature=weather_data.temperature,
                            conditions=weather_data.detailed_forecast)
                 return weather_data
@@ -307,15 +308,15 @@ class WeatherService:
         """
         intersection_name = self.config_service.get_intersection_name()
         intersections_weather_map = self.config_service.get_intersections_weather_map()
-
-        if self.config_service.get_weather_config().get("enable_markers", False):
+        if self.config_service.get_weather_config().get("enable_fire_markers", False):
             if intersection_name in intersections_weather_map.get(WeatherType.FIRES.value, []):
                 return self._load_mock_weather_from_file(WeatherType.FIRES)
-            elif intersection_name in intersections_weather_map.get(WeatherType.FLOOD.value, []):
-                return self._load_mock_weather_from_file(WeatherType.FLOOD)
-            elif intersection_name in intersections_weather_map.get(WeatherType.STORM.value, []):
+        elif self.config_service.get_weather_config().get("enable_flood_markers", False):
+            if intersection_name in intersections_weather_map.get(WeatherType.FLOOD.value, []):
+               return self._load_mock_weather_from_file(WeatherType.FLOOD)
+        elif self.config_service.get_weather_config().get("enable_storm_markers", False):
+            if intersection_name in intersections_weather_map.get(WeatherType.STORM.value, []):
                 return self._load_mock_weather_from_file(WeatherType.STORM)
-
         return self._load_mock_weather_from_file()
 
     def get_default_weather(self) -> WeatherData:

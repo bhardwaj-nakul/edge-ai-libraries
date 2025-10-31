@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from services.data_aggregator import DataAggregatorService
+from models import WeatherType
 
 
 logger = structlog.get_logger(__name__)
@@ -233,29 +234,43 @@ async def update_threshold(
 @router.put("/config/weather")
 async def update_weather_markers(
     request: Request,
-    enable_markers: bool = Query(description="Enable or disable weather markers"),
+    marker_type: WeatherType = Query(description="Type of weather markers to enable (clear, fires, storm, flood)"),
 ) -> Dict[str, Any]:
     """Update weather markers configuration."""
     try:
         config_service = get_config_service(request)
+        key_map = {WeatherType.CLEAR: None, WeatherType.FIRES: "enable_fire_markers", WeatherType.STORM: "enable_storm_markers", 
+                   WeatherType.FLOOD: "enable_flood_markers"}
+        
+        config_key = key_map.get(marker_type, None)
+        old_setting = None
+        if config_key:
+            old_setting = config_service.get_weather_config().get(config_key, False)
+            config_service.update_config(f"weather.{config_key}", True)
+            for k in key_map.values():
+                if k and k != config_key:
+                    config_service.update_config(f"weather.{k}", False)
+        elif marker_type == WeatherType.CLEAR:
+            for k in key_map.values():
+                if k:
+                    old_setting = config_service.get_weather_config().get(k, False)
+                    config_service.update_config(f"weather.{k}", False)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid marker type")
 
-        # Get old setting for logging
-        old_setting = config_service.get_weather_config().get("enable_markers")
-
-        # Update configuration
-        config_service.update_config("weather.enable_markers", enable_markers)
-
-        logger.info("Weather markers updated",
+        logger.info("Weather markers configuration updated", 
+                   marker_type=marker_type.value,
                    old_setting=old_setting,
-                   new_setting=enable_markers)
+                   new_setting=True if config_key else False)
 
         weather_service = get_weather_service(request)
         await weather_service.get_current_weather(force_refresh=True)
 
         return {
-            "message": "Weather markers updated successfully",
+            "message": "Weather markers configuration updated successfully",
+            "marker_type": marker_type.value,
             "old_setting": old_setting,
-            "new_setting": enable_markers,
+            "new_setting": True if config_key else False,
             "timestamp": datetime.utcnow().isoformat()
         }
 

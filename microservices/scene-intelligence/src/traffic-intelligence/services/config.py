@@ -69,10 +69,20 @@ class ConfigService:
                 config["weather"] = {}
             config["weather"]["use_mock"] = os.getenv("WEATHER_MOCK").lower() in ["true", "1", "yes"]
         
-        if os.getenv("ENABLE_WEATHER_MARKERS"):
+        if os.getenv("ENABLE_FIRE_MARKERS"):
             if "weather" not in config:
                 config["weather"] = {}
-            config["weather"]["enable_markers"] = os.getenv("ENABLE_WEATHER_MARKERS").lower() in ["true", "1", "yes"]
+            config["weather"]["enable_fire_markers"] = os.getenv("ENABLE_FIRE_MARKERS").lower() in ["true", "1", "yes"]
+
+        if os.getenv("ENABLE_STORM_MARKERS"):
+            if "weather" not in config:
+                config["weather"] = {}
+            config["weather"]["enable_storm_markers"] = os.getenv("ENABLE_STORM_MARKERS").lower() in ["true", "1", "yes"]
+
+        if os.getenv("ENABLE_FLOOD_MARKERS"):
+            if "weather" not in config:
+                config["weather"] = {}
+            config["weather"]["enable_flood_markers"] = os.getenv("ENABLE_FLOOD_MARKERS").lower() in ["true", "1", "yes"]
 
         # VLM configuration
         if os.getenv("VLM_BASE_URL"):
