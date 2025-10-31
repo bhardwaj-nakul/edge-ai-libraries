@@ -5,9 +5,10 @@ from config import (
     SCENE_INTELLIGENCE_API_BASE,
     SCENE_INTELLIGENCE_ENDPOINTS,
 )
-from controllers.route_status import RouteStatusInterface
+from controllers.route_interface import RouteStatusInterface
 from schema import GeoCoordinates, LiveTrafficData
 from utils.logging_config import get_logger
+from utils.helper import read_config_json
 
 logger = get_logger(__name__)
 
@@ -47,35 +48,50 @@ class LiveTrafficController(RouteStatusInterface):
         try:
             logger.info("Fetching live traffic data ...")
             # Construct the API URL
-            api_url = f"{SCENE_INTELLIGENCE_API_BASE}{SCENE_INTELLIGENCE_ENDPOINTS['traffic_summary']}"
+
+            config = read_config_json()
+            api_endpoint = config.get("api_endpoint")
+            api_responses: list[dict] = []
             
-            # Make the API request
-            response = requests.get(api_url)
-            response.raise_for_status()  # Raise an exception for HTTP errors
+            if not api_endpoint:
+                raise ValueError("API endpoint not found in configuration.")
             
-            # Parse the response
-            data = response.json()
+            for api_host in config.get("api_hosts", []):
+                host = api_host.get("host")
+                if host:
+                    # Make the API request
+                    try:
+                        logger.debug(f"Sending request to Intersection API: {host}{api_endpoint}")
+                        response = requests.get(f"{host}{api_endpoint}")
+                        response.raise_for_status()  # Raise an exception for HTTP errors
+                        # Parse the response
+                        api_responses.append(response.json())
+                    except requests.RequestException as e:
+                        logger.error(f"Error fetching data from intersection at {host}: {e}")
 
             # List to store the final response as list of LiveTrafficData
             intersection_traffic_data = []
             
             # Look for intersections that match our current coordinates
-            for intersection in data.get("data", {}).get("intersections", []):
+            for response in api_responses:
+                # for intersection in response.get("data", {}):
                 # Get the intersection's coordinates
-                intersection_lat = intersection.get("latitude")
-                intersection_lon = intersection.get("longitude")
-                
-                traffic_density = intersection.get("total_density", 0)
-                
+                intersection_data = response.get("data", {})
+                logger.info(f"Processing intersection data: {intersection_data.get('intersection_name', 'Unknown')}")
+                intersection_lat = intersection_data.get("latitude")
+                intersection_lon = intersection_data.get("longitude")
+
+                traffic_density = intersection_data.get("total_density", 0)
+
                 # Get traffic description if available
                 traffic_description = None
-                vlm_analysis = intersection.get("vlm_analysis", {})
-                if vlm_analysis and "analysis" in vlm_analysis:
-                    traffic_description = vlm_analysis.get("analysis")
-                
+                vlm_analysis = response.get("vlm_analysis", {})
+                if vlm_analysis and "traffic_summary" in vlm_analysis:
+                    traffic_description = vlm_analysis.get("traffic_summary")
+
                 # Get intersection images if available (base64 encoded)
                 intersection_images = {}
-                camera_images = intersection.get("camera_images", {})
+                camera_images = response.get("camera_images", {})
                 for camera_id, image_data in camera_images.items():
                     intersection_images[camera_id] = image_data.get("image_base64")
 
@@ -86,8 +102,8 @@ class LiveTrafficController(RouteStatusInterface):
                             latitude=intersection_lat,
                             longitude=intersection_lon,
                         ),
-                        intersection_name=intersection.get("intersection_name", "Unknown Intersection"),
-                        timestamp=intersection.get("timestamp", ""),
+                        intersection_name=intersection_data.get("intersection_name", "Unknown Intersection"),
+                        timestamp=intersection_data.get("timestamp", ""),
                         traffic_density=traffic_density,
                         traffic_description=traffic_description,
                         intersection_images=intersection_images,
@@ -97,5 +113,7 @@ class LiveTrafficController(RouteStatusInterface):
             return intersection_traffic_data
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             logger.error(f"Error fetching live traffic data: {e}")
             return []
