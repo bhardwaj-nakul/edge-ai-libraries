@@ -9,7 +9,7 @@ import gradio as gr
 from PIL import Image
 
 from config import APP_DETAILS, INITIAL_MAP_HTML
-from controllers.threshold_controller import ThresholdController
+from controllers.threshold import ThresholdController
 from services.route_service import RouteService
 from utils.logging_config import setup_logging
 
@@ -20,8 +20,8 @@ current_route_info = None
 optimization_active = False
 optimization_thread = None
 agent_iteration_count = 1
-UI_UPDATE_INTERVAL = 9  # Poll interval for new updates from data_queue used by thread
-OPTIMIZATION_INTERVAL = 12  # Seconds between agent invocations
+UI_UPDATE_INTERVAL = 4  # Poll interval for new updates from data_queue used by thread
+OPTIMIZATION_INTERVAL = 6  # Seconds between agent invocations
 
 # Queue for passing data between agent thread and UI
 data_queue = queue.Queue()
@@ -284,32 +284,6 @@ def check_for_updates(*args):
     return no_update_tuple
 
 
-def update_traffic_threshold(threshold_value: int):
-    """
-    Update the traffic density threshold value both locally and in the API.
-    
-    Args:
-        threshold_value (int): The new threshold value (1-15)
-    
-    Returns:
-        str: A message indicating the result of the update
-    """
-    try:
-        # Post the update the threshold to Scene Intellifence API
-        threshold_controller = ThresholdController()
-        response = threshold_controller.update_threshold(threshold_value)
-        
-        if response.get("status", "") == "success":
-            return f"Traffic threshold updated to {threshold_value}."
-        else:
-            logger.error(f"API threshold update failed: {response.get('error', 'Unknown error')}")
-            return f"Local threshold updated to {threshold_value}, but API update failed"
-    
-    except Exception as e:
-        logger.error(f"Error updating traffic threshold: {e}")
-        return f"Error updating threshold: {str(e)}"
-
-
 def create_gradio_interface() -> gr.Blocks:
     """Create and configure the Gradio interface"""
 
@@ -516,27 +490,10 @@ def create_gradio_interface() -> gr.Blocks:
             with gr.Column(scale=1):
                 search_btn = gr.Button("Find Route", variant="primary", size="lg", elem_classes=["search-button"], interactive=True)
 
-        with gr.Row(elem_classes=["settings-panel"]):
-            with gr.Column(scale=3):
-                traffic_threshold = gr.Slider(
-                    minimum=1,
-                    maximum=15,
-                    value=ThresholdController.TRAFFIC_DENSITY_THRESHOLD,
-                    step=1,
-                    label="Traffic Density Threshold",
-                    info="Adjust threshold for rerouting (1-15)",
-                    elem_classes=["traffic-slider"],
-                    container=True
-                )
-                threshold_status = gr.Textbox(
-                    label="Threshold Status",
-                    visible=True,
-                    interactive=False,
-                    elem_classes=["threshold-status"],
-                    container=True
-                )
-
-            with gr.Column(scale=2):
+        # AI Thinking Output and Route Map side by side
+        with gr.Row(elem_classes=["main-content-row"]):
+            with gr.Column(scale=1):
+                # with gr.Column(scale=3):
                 agent_status = gr.Textbox(
                     label="AI Agent Planning Status",
                     value="Inactive",
@@ -549,10 +506,6 @@ def create_gradio_interface() -> gr.Blocks:
                     elem_classes=["stop-button"],
                     interactive=False
                 )
-
-        # AI Thinking Output and Route Map side by side
-        with gr.Row(elem_classes=["main-content-row"]):
-            with gr.Column(scale=1):
                 thinking_output = gr.Markdown(
                     label="AI Agent Thinking Process",
                     value=APP_DETAILS,
@@ -602,12 +555,6 @@ def create_gradio_interface() -> gr.Blocks:
                     )
 
         intersection_images = [intersection_image1, intersection_image2, intersection_image3, intersection_image4]
-
-        traffic_threshold.change(
-            fn=update_traffic_threshold,
-            inputs=[traffic_threshold],
-            outputs=[threshold_status],
-        )
 
         # Connect the search button with initial route display and start the Route Planner agent
         search_btn.click(
