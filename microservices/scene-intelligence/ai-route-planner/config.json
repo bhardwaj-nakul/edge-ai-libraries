@@ -1,0 +1,17 @@
+{
+    "api_endpoint": "/api/v1/traffic/current",
+    "api_hosts": [
+        {
+            "name": "Intersection-1",
+            "host": "http://10.223.23.199:8081"
+        },
+        {
+            "name": "Intersection-2",
+            "host": "http://10.223.200.170:8081"
+        },
+        {
+            "name": "Intersection-3",
+            "host": "http://10.223.24.51:8081"
+        }
+    ]
+}

@@ -4,6 +4,8 @@ from pathlib import Path
 
 # Configs and Constants for the Route Planner Application
 
+CONFIG_FILE: Path = Path(__file__).parent / "config.json"
+
 # Default locations and coordinates
 DEFAULT_LOCATIONS = [
     "Berkeley, California",
