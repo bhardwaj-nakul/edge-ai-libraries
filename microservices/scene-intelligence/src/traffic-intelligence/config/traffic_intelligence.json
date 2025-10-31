@@ -1,7 +1,7 @@
 {
   "intersection": {
     "id": "97781c36-b53a-4749-87e6-8815da99bac7",
-    "name": "Intersection-Demo",
+    "name": "Intersection-1",
     "latitude": 33.3091336,
     "longitude": -111.9353095
   },
@@ -33,7 +33,8 @@
   "weather": {
     "api_base_url": "https://api.weather.gov",
     "user_agent": "traffic-intelligence (admin@example.com)",
-    "cache_duration_minutes": 11
+    "cache_duration_minutes": 11,
+    "enable_markers": false
   },
   "vlm": {
     "base_url": "http://vlm-openvino-serving:8000",

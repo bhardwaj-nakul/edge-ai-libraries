@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from services.data_aggregator import DataAggregatorService
+from models import WeatherType
 
 
 logger = structlog.get_logger(__name__)
@@ -228,4 +229,51 @@ async def update_threshold(
         
     except Exception as e:
         logger.error("Failed to update threshold", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/config/weather")
+async def update_weather_markers(
+    request: Request,
+    marker_type: WeatherType = Query(description="Type of weather markers to enable (clear, fires, storm, flood)"),
+) -> Dict[str, Any]:
+    """Update weather markers configuration."""
+    try:
+        config_service = get_config_service(request)
+        key_map = {WeatherType.CLEAR: None, WeatherType.FIRES: "enable_fire_markers", WeatherType.STORM: "enable_storm_markers", 
+                   WeatherType.FLOOD: "enable_flood_markers"}
+        
+        config_key = key_map.get(marker_type, None)
+        old_setting = None
+        if config_key:
+            old_setting = config_service.get_weather_config().get(config_key, False)
+            config_service.update_config(f"weather.{config_key}", True)
+            for k in key_map.values():
+                if k and k != config_key:
+                    config_service.update_config(f"weather.{k}", False)
+        elif marker_type == WeatherType.CLEAR:
+            for k in key_map.values():
+                if k:
+                    old_setting = config_service.get_weather_config().get(k, False)
+                    config_service.update_config(f"weather.{k}", False)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid marker type")
+
+        logger.info("Weather markers configuration updated", 
+                   marker_type=marker_type.value,
+                   old_setting=old_setting,
+                   new_setting=True if config_key else False)
+
+        weather_service = get_weather_service(request)
+        await weather_service.get_current_weather(force_refresh=True)
+
+        return {
+            "message": "Weather markers configuration updated successfully",
+            "marker_type": marker_type.value,
+            "old_setting": old_setting,
+            "new_setting": True if config_key else False,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error("Failed to update weather markers", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")

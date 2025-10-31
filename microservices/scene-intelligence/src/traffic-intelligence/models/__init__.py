@@ -22,6 +22,13 @@ class AlertType(Enum):
     MAINTENANCE = "maintenance"
     NORMAL = "normal"
 
+class WeatherType(Enum):
+    """Types of weather conditions."""
+    CLEAR = "clear"
+    FIRES = "fires"
+    FLOOD = "flood"
+    STORM = "storm"
+
 
 @dataclass
 class WeatherData:
@@ -44,6 +51,7 @@ class WeatherData:
     start_time: Optional[str] = None   # Start time of the forecast period
     end_time: Optional[str] = None     # End time of the forecast period
     is_cached: bool = False          # Whether this data was served from cache
+    weather_type: WeatherType = WeatherType.CLEAR  # Type of weather condition
 
 
 @dataclass
