@@ -2,7 +2,7 @@ import csv
 from typing import Optional
 
 from config import ROUTE_STATUS_DIR, CongestionLevel
-from controllers.route_status import RouteStatusInterface
+from controllers.route_interface import RouteStatusInterface
 from schema import GeoCoordinates, PlannedEventsData
 from utils.logging_config import get_logger
 
