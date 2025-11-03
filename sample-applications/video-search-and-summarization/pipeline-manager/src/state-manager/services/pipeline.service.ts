@@ -171,12 +171,12 @@ export class PipelineService {
       caption,
     );
 
-    // const anyIncomplete = this.$chunking.hasProcessing(stateId);
-    // console.log(`anyIncomplete:${anyIncomplete}`)
+    const anyIncomplete = this.$chunking.hasProcessing(stateId);
+    console.log(`anyIncomplete:${anyIncomplete}`)
 
-    // if (!anyIncomplete) {
-    //   this.$event.emit(PipelineEvents.SUMMARY_TRIGGER, { stateId });
-    // }
+    if (!anyIncomplete) {
+      this.$event.emit(PipelineEvents.SUMMARY_TRIGGER, { stateId });
+    }
   }
 
   @OnEvent(PipelineEvents.SUMMARY_TRIGGER)
