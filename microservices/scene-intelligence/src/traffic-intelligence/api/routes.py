@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from services.data_aggregator import DataAggregatorService
-from models import WeatherType
+from models import WeatherType, IncidentType
 
 
 logger = structlog.get_logger(__name__)
@@ -276,4 +276,35 @@ async def update_weather_markers(
 
     except Exception as e:
         logger.error("Failed to update weather markers", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/config/incident")
+async def update_incident_markers(
+    request: Request,
+    incident_type: IncidentType = Query(description="Type of incident markers to enable (accident, crowding, roadblock, maintenance, clear)"),
+) -> Dict[str, Any]:
+    """Update incident markers configuration."""
+    try:
+        config_service = get_config_service(request)
+        old_setting = config_service.get_traffic_config().get("incident_reporting_enabled", False)
+        old_type = config_service.get_traffic_config().get("incident_type")
+        
+        is_clear = incident_type == IncidentType.CLEAR
+        config_service.update_config("traffic.incident_reporting_enabled", not is_clear)
+        config_service.update_config("traffic.incident_type", None if is_clear else incident_type.value)
+
+        logger.info("Incident markers updated", incident_type=incident_type.value, 
+                    old_setting=old_setting, new_setting=not is_clear)
+
+        return {
+            "message": "Incident markers updated",
+            "incident_type": incident_type.value,
+            "old_setting": old_setting,
+            "old_type": old_type,
+            "new_setting": not is_clear,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error("Failed to update incident markers", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")

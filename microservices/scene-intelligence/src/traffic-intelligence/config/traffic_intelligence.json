@@ -1,9 +1,8 @@
 {
   "intersection": {
-    "id": "97781c36-b53a-4749-87e6-8815da99bac7",
-    "name": "Intersection-1",
-    "latitude": 33.3091336,
-    "longitude": -111.9353095
+    "name": "Intersection-2",
+    "latitude": 37.4688273,
+    "longitude": -122.1410751
   },
   "mqtt": {
     "host": "broker.scenescape.intel.com",

@@ -126,7 +126,15 @@ class ConfigService:
             if "traffic" not in config:
                 config["traffic"] = {}
             config["traffic"]["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
-               
+        
+        # Incident reporting configuration
+        if "traffic" not in config:
+            config["traffic"] = {}
+        
+        incident_enabled = os.getenv("INCIDENT_REPORTING_ENABLED", "").lower() in ["true", "1", "yes"]
+        config["traffic"]["incident_reporting_enabled"] = incident_enabled
+        config["traffic"]["incident_type"] = os.getenv("INCIDENT_TYPE", "clear")
+
         return config
 
     def _load_intersections_weather_map(self) -> dict:
@@ -196,6 +204,14 @@ class ConfigService:
     def get_high_density_threshold(self) -> int:
         """Get high density threshold for traffic analysis."""
         return self.config.get("traffic", {}).get("high_density_threshold", 5)
+    
+    def is_incident_reporting_enabled(self) -> bool:
+        """Check if incident reporting is enabled."""
+        return self.config.get("traffic", {}).get("incident_reporting_enabled", False)
+
+    def get_incident_type(self) -> str:
+        """Get the type of incident to report."""
+        return self.config.get("traffic", {}).get("incident_type")
     
     def update_config(self, key: str, value: any) -> None:
         """Update configuration value."""
