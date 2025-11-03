@@ -514,26 +514,26 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
         
         # Create basic alert
         alerts = []
+        weather_impact = False
+        if self.weather_data:
+            weather_impact = True
+            description = self.weather_service.get_weather_description(self.weather_data.weather_type)
+            alert = VLMAlert(
+                alert_type=AlertType.WEATHER_RELATED,
+                level=AlertLevel.CRITICAL,
+                description=description,
+                weather_related=weather_impact
+            )
+            alerts.append(alert)
+
         if high_density_directions:
-            weather_impact = weather_data and weather_data.weather_type in {WeatherType.FIRES, WeatherType.STORM, WeatherType.FLOOD}
             description = f"High traffic density in {', '.join(high_density_directions)} direction(s)."
-
-            if weather_impact:
-                description = self.weather_service.get_weather_description(weather_data.weather_type)
-
-                alert = VLMAlert(
-                    alert_type=AlertType.WEATHER_RELATED,
-                    level=AlertLevel.CRITICAL,
-                    description=description,
-                    weather_related=weather_impact
-                )
-            else:
-                alert = VLMAlert(
-                    alert_type=AlertType.CONGESTION,
-                    level=AlertLevel.WARNING if traffic_snapshot.total_count > high_density_threshold * 2 else AlertLevel.INFO,
-                    description=description,
-                    weather_related=weather_impact
-                )
+            alert = VLMAlert(
+                alert_type=AlertType.CONGESTION,
+                level=AlertLevel.WARNING if traffic_snapshot.total_count > high_density_threshold * 2 else AlertLevel.INFO,
+                description=description,
+                weather_related=weather_impact
+            )
             alerts.append(alert)
         
         return VLMAnalysisData(
