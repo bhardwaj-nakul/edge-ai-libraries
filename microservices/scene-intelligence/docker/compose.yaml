@@ -88,9 +88,9 @@ services:
       MQTT_PORT: 1883
       
       # Intersection configuration (overrides config/traffic_intelligence.json)
-      INTERSECTION_NAME: ${INTERSECTION_NAME:-Intersection-Demo}
-      INTERSECTION_LATITUDE: ${INTERSECTION_LATITUDE:-33.3091336}
-      INTERSECTION_LONGITUDE: ${INTERSECTION_LONGITUDE:--111.9353095}
+      INTERSECTION_NAME: ${INTERSECTION_NAME:-Intersection-1}
+      INTERSECTION_LATITUDE: ${INTERSECTION_LATITUDE:-37.7049108}
+      INTERSECTION_LONGITUDE: ${INTERSECTION_LONGITUDE:--121.9096158}
       
       # Weather configuration (overrides config/traffic_intelligence.json)
       WEATHER_MOCK: ${WEATHER_MOCK:-true}
