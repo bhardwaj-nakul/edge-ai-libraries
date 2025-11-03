@@ -2,10 +2,17 @@
 
 import os
 import json
+import hashlib
 from typing import Dict, List, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+
+def hash_intersection_name(name: str, length: int = 16) -> str:
+    hash_object = hashlib.sha256(name.encode('utf-8'))
+    hex_digest = hash_object.hexdigest()
+    return hex_digest[:length]
 
 
 class ConfigService:
@@ -137,8 +144,8 @@ class ConfigService:
 
     
     def get_intersection_id(self) -> str:
-        """Get the intersection ID."""
-        return self.config.get("intersection", {}).get("id", "cb1cf1a0-b936-4d47-9221-3fd5cf24857d")
+        name = self.get_intersection_name()
+        return hash_intersection_name(name)
     
     def get_intersection_name(self) -> str:
         """Get the intersection name."""

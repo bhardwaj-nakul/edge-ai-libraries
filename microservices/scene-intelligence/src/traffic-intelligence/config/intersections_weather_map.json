@@ -1,17 +1,17 @@
 {
     "fires": [
-        "Intersection-1",
-        "Intersection-2",
-        "Intersection-3"
+        "bc7ddf1b2e275ef1",
+        "b3137b79ed73094c",
+        "6c5ebc4907023480"
     ],
     "storm": [
-        "Intersection-4",
-        "Intersection-5",
-        "Intersection-6"
+        "8f472ac84175b214",
+        "f3c7c78c98ef5851",
+        "8439e8792a1a0175"
     ],
     "flood": [
-        "Intersection-7",
-        "Intersection-8",
-        "Intersection-9"
+        "bb3822c44f23e6c8",
+        "d0e8b23e6b48f6e1",
+        "65363a6c1971f704"
     ]
 }
