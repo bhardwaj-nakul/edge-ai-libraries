@@ -123,7 +123,12 @@ fi
 # ============================================================================
 
 # Export HOST_IP early so it can be used in prerequisite checks
-export HOST_IP=$(ip route get 1 | awk '{print $7}')  # Fetch the host IP
+# Try to get the host IP, fallback to localhost if command fails (airgapped systems)
+export HOST_IP=$(ip route get 1 2>/dev/null | awk '{print $7}')
+if [ -z "$HOST_IP" ]; then
+    echo -e "${YELLOW}Warning: Could not detect host IP. Using localhost (127.0.0.1)${NC}"
+    export HOST_IP="127.0.0.1"
+fi
 
 # Function to check if prerequisites are met
 check_and_setup_prerequisites() {
