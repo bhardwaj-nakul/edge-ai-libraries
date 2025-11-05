@@ -412,9 +412,18 @@ restart_service() {
                 return 1
             fi
             
-            # Start with force-recreate to ensure env vars are picked up
+            # Run install.sh to start services with updated configuration
+            echo -e "${BLUE}==> Running installation script for smart-intersection...${NC}"
+            ./install.sh smart-intersection
+            
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}Failed to run install.sh for smart-intersection${NC}"
+                cd - > /dev/null
+                return 1
+            fi
+            
             echo -e "${BLUE}==> Starting prerequisite services with updated configuration...${NC}"
-            docker compose up -d --force-recreate
+            docker compose up -d
             
             if [ $? -eq 0 ]; then
                 echo -e "${GREEN}Prerequisite Services restarted successfully with updated configuration!${NC}"
@@ -447,7 +456,11 @@ restart_service() {
                 
                 echo -e "${BLUE}==> Restarting prerequisite services...${NC}"
                 docker compose down
-                docker compose up -d --force-recreate
+                
+                echo -e "${BLUE}==> Running installation script for smart-intersection...${NC}"
+                ./install.sh smart-intersection
+                
+                docker compose up -d
                 
                 if [ $? -eq 0 ]; then
                     echo -e "${GREEN}Prerequisite Services restarted successfully!${NC}"
