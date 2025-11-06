@@ -15,6 +15,8 @@ services:
     ports:
       - "${VLM_SERVICE_PORT:-9764}:8000"
     ipc: host
+    networks:
+      - scenescape
     environment:
       # Proxy settings
       no_proxy_env: ${no_proxy_env},${HOST_IP}
@@ -60,6 +62,8 @@ services:
     ports:
       - "${TRAFFIC_INTELLIGENCE_PORT:-8081}:8081"
       - "${TRAFFIC_INTELLIGENCE_UI_PORT:-7860}:7860"
+    networks:
+      - scenescape
     depends_on:
       vlm-openvino-serving:
         condition: service_healthy
@@ -84,9 +88,9 @@ services:
       HTTPS_PROXY: ${https_proxy}
       
       # MQTT configuration (connects to broker service)
-      MQTT_HOST: ${HOST_IP}
-      MQTT_PORT: 1883
-      
+      MQTT_HOST: ${MQTT_HOST:-broker.scenescape.intel.com}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+
       # Intersection configuration (overrides config/traffic_intelligence.json)
       INTERSECTION_NAME: ${INTERSECTION_NAME:-Intersection-1}
       INTERSECTION_LATITUDE: ${INTERSECTION_LATITUDE:-37.7049108}
@@ -118,3 +122,8 @@ services:
 volumes:
   ov-models:
   traffic-intelligence-data:
+
+networks:
+  scenescape:
+    external: true
+    name: metro-vision-ai-app-recipe_scenescape
