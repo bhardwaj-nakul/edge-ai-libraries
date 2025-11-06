@@ -42,4 +42,4 @@ htmlcov
 **/dlstreamer-pipeline-server/videos/**.ts
 
 
-ai-route-planner.pid
+edge-ai-suites/
