@@ -81,7 +81,7 @@ elif [ "$1" = "--clean" ]; then
     # If --clean is passed, clean up containers and volumes
     echo -e "${YELLOW}Cleaning up containers and volumes... ${NC}"
     
-    docker compose -f docker/compose.yaml up down 2>/dev/null || true
+    docker compose -f docker/compose.yaml down 2>/dev/null || true
     
     echo -e "${YELLOW}Removing scene intelligence volumes... ${NC}"
     docker volume ls | grep scene-intelligence | awk '{ print $2 }' | xargs docker volume rm 2>/dev/null || true
