@@ -81,7 +81,7 @@ elif [ "$1" = "--clean" ]; then
     # If --clean is passed, clean up containers and volumes
     echo -e "${YELLOW}Cleaning up containers and volumes... ${NC}"
     
-    docker compose down 2>/dev/null || true
+    docker compose -f docker/compose.yaml up down 2>/dev/null || true
     
     echo -e "${YELLOW}Removing scene intelligence volumes... ${NC}"
     docker volume ls | grep scene-intelligence | awk '{ print $2 }' | xargs docker volume rm 2>/dev/null || true
@@ -278,7 +278,7 @@ export VLM_TOP_P=${VLM_TOP_P:-0.1}
 
 # VLM OpenVINO Configuration
 export VLM_DEVICE=${VLM_DEVICE:-CPU}
-export VLM_COMPRESSION_WEIGHT_FORMAT=${VLM_COMPRESSION_WEIGHT_FORMAT:-int4}
+export VLM_COMPRESSION_WEIGHT_FORMAT=${VLM_COMPRESSION_WEIGHT_FORMAT:-int}
 export VLM_SEED=${VLM_SEED:-42}
 export VLM_WORKERS=${VLM_WORKERS:-1}
 export VLM_LOG_LEVEL=${VLM_LOG_LEVEL:-info}
