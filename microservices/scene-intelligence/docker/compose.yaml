@@ -100,7 +100,7 @@ services:
       WEATHER_MOCK: ${WEATHER_MOCK:-true}
       
       # VLM configuration (overrides config/traffic_intelligence.json)
-      VLM_MODEL: ${VLM_MODEL:-Qwen/Qwen2.5-VL-3B-Instruct}
+      VLM_MODEL: ${VLM_MODEL_NAME:-Qwen/Qwen2.5-VL-3B-Instruct}
       
       # Traffic analysis configuration (overrides config/traffic_intelligence.json)
       HIGH_DENSITY_THRESHOLD: ${HIGH_DENSITY_THRESHOLD:-10}
