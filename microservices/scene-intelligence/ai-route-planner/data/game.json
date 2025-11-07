@@ -1,0 +1,48 @@
+{
+  "fire_emojis": [
+    {
+      "id": 1,
+      "emoji": "🔥",
+      "latitude": 37.735341,
+      "longitude": -122.116071,
+      "label": "Fire Zone 1"
+    },
+    {
+      "id": 2,
+      "emoji": "🔥",
+      "latitude": 37.436072,
+      "longitude": -121.843004,
+      "label": "Fire Zone 2"
+    },
+    {
+      "id": 3,
+      "emoji": "🔥",
+      "latitude": 37.672323,
+      "longitude": -121.966501,
+      "label": "Fire Zone 3"
+    }
+  ],
+  "flood_emojis": [
+    {
+      "id": 1,
+      "emoji": "🌊",
+      "latitude": 37.594019,
+      "longitude": -122.110582,
+      "label": "Flood Zone 1"
+    },
+    {
+      "id": 2,
+      "emoji": "🌊",
+      "latitude": 37.776600,
+      "longitude": -122.260151,
+      "label": "Flood Zone 2"
+    },
+    {
+      "id": 3,
+      "emoji": "🌊",
+      "latitude": 37.487305,
+      "longitude": -121.991201,
+      "label": "Flood Zone 3"
+    }
+  ]
+}

@@ -193,7 +193,7 @@ class RouteService:
         )
 
     def create_direct_route_map(
-        self, start_location: str, end_location: str
+        self, start_location: str, end_location: str, game_data: Optional[dict] = None
     ) -> tuple[str, float, str]:
         """Create initial map showing only the main route before AI analysis"""
         map_data_parser: MapDataParser = self._load_direct_shortest_route(
@@ -205,12 +205,12 @@ class RouteService:
 
         # Get the next data source to be used for route optimization and current route map
         next_data_source = self._get_next_data_source()
-        direct_route_map = self.create_route_map(start_location, end_location)
+        direct_route_map = self.create_route_map(start_location, end_location, game_data=game_data)
         distance = self.route_state["optimal_route"]["distance"] if self.route_state else 0.0
         return next_data_source, distance, direct_route_map
 
     def create_alternate_route_map(
-        self, start_location: str, end_location: str
+        self, start_location: str, end_location: str, game_data: Optional[dict] = None
     ) -> tuple[str, str, float, str, Optional[dict[str, str]]]:
         """Create map showing alternative route"""
 
@@ -236,13 +236,13 @@ class RouteService:
         logger.info(f"Total {len(intersection_list)} intersections available for routing.")
 
         # Create alternate route map for the alternate route
-        alternate_map = self.create_route_map(start_location, end_location, intersection_list, incident_location)
+        alternate_map = self.create_route_map(start_location, end_location, intersection_list, incident_location, game_data)
         distance = self.route_state["optimal_route"]["distance"] if self.route_state else 0.0
         is_sub_optimal = self.route_state.get("is_sub_optimal") if self.route_state else False
 
         return next_data_source, alternate_planning_reason, distance, is_sub_optimal, alternate_map, intersection_images
 
-    def create_route_map(self, start_location: str, end_location: str, intersection_list: Optional[list[GeoCoordinates]] = None, incident_location: Optional[dict[str, Any]] = None) -> str:
+    def create_route_map(self, start_location: str, end_location: str, intersection_list: Optional[list[GeoCoordinates]] = None, incident_location: Optional[dict[str, Any]] = None, game_data: Optional[dict] = None) -> str:
         """Create a complete route map with all routes and markers"""
         # Get coordinates for the selected locations
         start_coords = self.location_coordinates.get(start_location)
@@ -332,6 +332,10 @@ class RouteService:
             self.map_creator.add_incident_marker(
                 map_obj, incident_location["name"], incident_location["coords"].latitude, incident_location["coords"].longitude
             )
+
+        # Add game mode markers if game data provided
+        if game_data:
+            self.map_creator.add_game_mode_markers(map_obj, game_data)
 
         # Add waypoint markers for longer routes using trackpoints
         if main_route_trackpoints and len(main_route_trackpoints) > 10:
