@@ -78,13 +78,13 @@ class MapCreator:
 
         # Determine zoom level
         if max_diff > 20:
-            zoom = 6
-        elif max_diff > 10:
             zoom = 7
-        elif max_diff > 5:
+        elif max_diff > 10:
             zoom = 8
-        else:
+        elif max_diff > 5:
             zoom = 9
+        else:
+            zoom = 10
 
         return center_lat, center_lon, zoom
 
@@ -164,16 +164,15 @@ class MapCreator:
             if intersection_name in traffic_data_map:
                 traffic_data = traffic_data_map[intersection_name]
                 popup_html = f"""
-                <div style="font-family: Arial, sans-serif; min-width: 350px; max-width: 500px;">
-                    <h4 style="margin: 0 0 10px 0; color: #1a73e8;">{intersection_name}</h4>
-                    <hr style="margin: 5px 0; border: 1px solid #e0e0e0;">
-                    <div style="margin: 8px 0;">
+                <div style="font-family: Arial, sans-serif; width: 420px;">
+                    <h4 style="margin: 0 0 8px 0; color: #1a73e8;">{intersection_name}</h4>
+                    <hr style="margin: 0 0 8px 0; border: none; border-top: 1px solid #e0e0e0;">
+                    <div style="margin: 0 0 6px 0; font-size: 13px;">
                         <strong>Traffic Density:</strong> {traffic_data.traffic_density} vehicles
                     </div>
-                    <div style="margin: 8px 0;">
-                        <strong>Location:</strong><br>
-                        Lat: {traffic_data.location_coordinates.latitude:.5f}<br>
-                        Lon: {traffic_data.location_coordinates.longitude:.5f}
+                    <div style="margin: 0 0 6px 0; font-size: 13px;">
+                        <strong>Location:</strong>
+                        Lat: {traffic_data.location_coordinates.latitude:.5f}, Lon: {traffic_data.location_coordinates.longitude:.5f}
                     </div>
                 """
                 
@@ -183,18 +182,18 @@ class MapCreator:
                     if len(description) > 200:
                         description = description[:200] + "..."
                     popup_html += f"""
-                    <div style="margin: 8px 0;">
-                        <strong>Traffic Description:</strong><br>
-                        <div style="font-size: 12px; color: #555; margin-top: 4px;">{description}</div>
+                    <div style="margin: 0 0 8px 0; font-size: 13px;">
+                        <strong>Traffic Description:</strong>
+                        <div style="font-size: 12px; color: #555; margin-top: 3px;">{description}</div>
                     </div>
                     """
                 
                 # Add camera images if available
                 if traffic_data.intersection_images:
                     popup_html += """
-                    <div style="margin: 10px 0;">
-                        <strong>Camera Views:</strong><br>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                    <div style="margin: 8px 0 0 0;">
+                        <strong style="font-size: 13px;">Camera Views:</strong>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
                     """
                     # Display up to 4 camera images in a 2x2 grid
                     image_count = 0
@@ -204,7 +203,7 @@ class MapCreator:
                             <div style="text-align: center;">
                                 <div style="font-size: 10px; color: #666; margin-bottom: 3px;">{camera_id}</div>
                                 <img src="data:image/jpeg;base64,{image_base64}" 
-                                     style="width: 100%; max-width: 200px; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block; margin: 0 auto;"
+                                     style="width: 100%; height: auto; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: block;"
                                      alt="{camera_id}">
                             </div>
                             """
@@ -219,7 +218,7 @@ class MapCreator:
                 location=[intersection[1], intersection[2]],
                 popup=folium.Popup(
                     popup_html,
-                    max_width=500,
+                    max_width=440,
                 ),
                 icon=folium.DivIcon(
                     html=intersection_icon_html, icon_size=(10, 10), icon_anchor=(5, 5)

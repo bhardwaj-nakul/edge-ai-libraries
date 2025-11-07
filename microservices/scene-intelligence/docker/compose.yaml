@@ -381,8 +381,8 @@ services:
       # Proxy settings
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
-      - no_proxy=${no_proxy_env},${HOST_IP}
-      - NO_PROXY=${no_proxy_env},${HOST_IP}
+      - no_proxy=${no_proxy},${HOST_IP}
+      - NO_PROXY=${no_proxy},${HOST_IP}
       - HTTP_PROXY=${http_proxy}
       - HTTPS_PROXY=${https_proxy}
       # Application settings
