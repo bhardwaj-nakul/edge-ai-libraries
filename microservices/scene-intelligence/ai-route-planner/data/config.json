@@ -3,15 +3,39 @@
     "api_hosts": [
         {
             "name": "Intersection-1",
-            "host": "http://10.223.24.242:8081"
+            "host": "http://10.0.1.135:8081"
         },
         {
             "name": "Intersection-2",
-            "host": "http://10.223.24.51:8081"
+            "host": "http://10.0.1.154:8081"
         },
         {
             "name": "Intersection-3",
-            "host": "http://10.223.200.170:8081"
+            "host": "http://10.0.1.24:8081"
+        },
+        {
+            "name": "Intersection-4",
+            "host": "http://10.0.1.235:8081"
+        },
+        {
+            "name": "Intersection-5",
+            "host": "http://10.0.2.124:8081"
+        },
+        {
+            "name": "Intersection-6",
+            "host": "http://10.0.2.145:8081"
+        },
+        {
+            "name": "Intersection-7",
+            "host": "http://10.0.2.164:8081"
+        },
+        {
+            "name": "Intersection-8",
+            "host": "http://10.0.2.186:8081"
+        },
+        {
+            "name": "Intersection-9",
+            "host": "http://10.0.2.120:8081"
         }
     ]
 }
