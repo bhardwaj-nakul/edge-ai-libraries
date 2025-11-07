@@ -391,6 +391,8 @@ services:
       - PYTHONPATH=/app
       # Scene Intelligence API Configuration
       - SI_API_BASE=http://${HOST_IP}:${SCENE_INTELLIGENCE_PORT:-8082}
+    volumes:
+      - ../ai-route-planner/data/config.json:/app/config.json:ro
     networks:
       - routeplanner
     healthcheck:

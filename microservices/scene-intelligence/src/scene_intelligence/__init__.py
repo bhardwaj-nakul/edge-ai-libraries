@@ -1,1 +1,0 @@
-"""Scene Intelligence Microservice Package."""
