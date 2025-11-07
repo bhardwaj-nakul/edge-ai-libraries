@@ -125,8 +125,15 @@ class MapCreator:
         self,
         map_obj: folium.Map,
         intersections: list[tuple[str, float, float]],
+        live_traffic_data_list: Optional[List] = None,
     ) -> None:
         """Add markers for all intersections available for routing"""
+        # Create a mapping from intersection name to traffic data for quick lookup
+        traffic_data_map = {}
+        if live_traffic_data_list:
+            for traffic_data in live_traffic_data_list:
+                traffic_data_map[traffic_data.intersection_name] = traffic_data
+
         intersection_icon_html = f"""
         <div style="
             background-color: {self.map_colors["no_incident"]};
@@ -149,11 +156,70 @@ class MapCreator:
         """
 
         for intersection in intersections:
+            intersection_name = intersection[0]
+            
+            # Create popup content with traffic data if available
+            popup_html = f"<b>{intersection_name}</b>"
+            
+            if intersection_name in traffic_data_map:
+                traffic_data = traffic_data_map[intersection_name]
+                popup_html = f"""
+                <div style="font-family: Arial, sans-serif; min-width: 350px; max-width: 500px;">
+                    <h4 style="margin: 0 0 10px 0; color: #1a73e8;">{intersection_name}</h4>
+                    <hr style="margin: 5px 0; border: 1px solid #e0e0e0;">
+                    <div style="margin: 8px 0;">
+                        <strong>Traffic Density:</strong> {traffic_data.traffic_density} vehicles
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <strong>Location:</strong><br>
+                        Lat: {traffic_data.location_coordinates.latitude:.5f}<br>
+                        Lon: {traffic_data.location_coordinates.longitude:.5f}
+                    </div>
+                """
+                
+                if traffic_data.traffic_description:
+                    # Truncate description if too long
+                    description = traffic_data.traffic_description
+                    if len(description) > 200:
+                        description = description[:200] + "..."
+                    popup_html += f"""
+                    <div style="margin: 8px 0;">
+                        <strong>Traffic Description:</strong><br>
+                        <div style="font-size: 12px; color: #555; margin-top: 4px;">{description}</div>
+                    </div>
+                    """
+                
+                # Add camera images if available
+                if traffic_data.intersection_images:
+                    popup_html += """
+                    <div style="margin: 10px 0;">
+                        <strong>Camera Views:</strong><br>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                    """
+                    # Display up to 4 camera images in a 2x2 grid
+                    image_count = 0
+                    for camera_id, image_base64 in traffic_data.intersection_images.items():
+                        if image_base64 and image_count < 4:
+                            popup_html += f"""
+                            <div style="text-align: center;">
+                                <div style="font-size: 10px; color: #666; margin-bottom: 3px;">{camera_id}</div>
+                                <img src="data:image/jpeg;base64,{image_base64}" 
+                                     style="width: 100%; max-width: 200px; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block; margin: 0 auto;"
+                                     alt="{camera_id}">
+                            </div>
+                            """
+                            image_count += 1
+                    popup_html += """
+                        </div>
+                    </div>"""
+                
+                popup_html += "</div>"
+            
             folium.Marker(
                 location=[intersection[1], intersection[2]],
                 popup=folium.Popup(
-                    f"<b>{intersection[0]}</b>",
-                    max_width=200,
+                    popup_html,
+                    max_width=500,
                 ),
                 icon=folium.DivIcon(
                     html=intersection_icon_html, icon_size=(10, 10), icon_anchor=(5, 5)

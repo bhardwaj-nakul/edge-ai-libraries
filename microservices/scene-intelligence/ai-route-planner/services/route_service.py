@@ -235,14 +235,17 @@ class RouteService:
         intersection_list: list[GeoCoordinates] = self.route_state.get("intersection_list", [])
         logger.info(f"Total {len(intersection_list)} intersections available for routing.")
 
+        # Get the complete live traffic data for all intersections
+        live_traffic_data_list = self.route_state.get("live_traffic_data_list", [])
+
         # Create alternate route map for the alternate route
-        alternate_map = self.create_route_map(start_location, end_location, intersection_list, incident_location, game_data)
+        alternate_map = self.create_route_map(start_location, end_location, intersection_list, incident_location, game_data, live_traffic_data_list)
         distance = self.route_state["optimal_route"]["distance"] if self.route_state else 0.0
         is_sub_optimal = self.route_state.get("is_sub_optimal") if self.route_state else False
 
         return next_data_source, alternate_planning_reason, distance, is_sub_optimal, alternate_map, intersection_images
 
-    def create_route_map(self, start_location: str, end_location: str, intersection_list: Optional[list[GeoCoordinates]] = None, incident_location: Optional[dict[str, Any]] = None, game_data: Optional[dict] = None) -> str:
+    def create_route_map(self, start_location: str, end_location: str, intersection_list: Optional[list[GeoCoordinates]] = None, incident_location: Optional[dict[str, Any]] = None, game_data: Optional[dict] = None, live_traffic_data_list: Optional[list] = None) -> str:
         """Create a complete route map with all routes and markers"""
         # Get coordinates for the selected locations
         start_coords = self.location_coordinates.get(start_location)
@@ -325,7 +328,7 @@ class RouteService:
                 (name, coords.latitude, coords.longitude)
                 for name, coords in intersection_list.items()
             ]
-            self.map_creator.add_intersection_marker(map_obj, intersection_coords)
+            self.map_creator.add_intersection_marker(map_obj, intersection_coords, live_traffic_data_list)
 
         # Add incident marker if available
         if incident_location:

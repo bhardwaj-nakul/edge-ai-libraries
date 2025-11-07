@@ -299,6 +299,7 @@ class RoutePlanner:
             "live_traffic": live_traffic_state,
             "is_sub_optimal": bool(sub_optimal_route),
             "intersection_list": intersection_list,
+            "live_traffic_data_list": live_route_status,
         }
 
 
