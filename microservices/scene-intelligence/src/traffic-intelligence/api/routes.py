@@ -46,6 +46,7 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
     """
     try:
         data_aggregator: DataAggregatorService = get_data_aggregator(request)
+        config_service = get_config_service(request)
         
         # Get current traffic intelligence
         traffic_response = await data_aggregator.get_current_traffic_intelligence()
@@ -113,6 +114,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 ],
                 "recommendations": traffic_response.vlm_analysis.recommendations or [],
                 "analysis_timestamp": traffic_response.vlm_analysis.analysis_timestamp.isoformat() if traffic_response.vlm_analysis.analysis_timestamp else None
+            },
+            "incident": {
+                "reporting_enabled": config_service.is_incident_reporting_enabled(),
+                "incident_type": config_service.get_incident_type()
             }
         }
         
@@ -120,7 +125,8 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                    intersection_id=traffic_response.intersection_id,
                    total_density=traffic_response.data.total_density,
                    total_pedestrian_count=traffic_response.data.total_pedestrian_count,
-                   alerts_count=len(traffic_response.vlm_analysis.alerts))
+                   alerts_count=len(traffic_response.vlm_analysis.alerts),
+                   incident_type=config_service.get_incident_type())
         
         return response_dict
         
