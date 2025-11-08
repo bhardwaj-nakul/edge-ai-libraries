@@ -179,6 +179,11 @@ async def get_service_config(request: Request) -> Dict[str, Any]:
     try:
         config_service = get_config_service(request)
         
+        # Get traffic config and add resolved incident type
+        traffic_config = config_service.get_traffic_config().copy()
+        traffic_config["incident_type"] = config_service.get_incident_type()
+        traffic_config["incident_reporting_enabled"] = config_service.is_incident_reporting_enabled()
+        
         return {
             "intersection": {
                 "id": config_service.get_intersection_id(),
@@ -188,7 +193,7 @@ async def get_service_config(request: Request) -> Dict[str, Any]:
             "camera_topics": config_service.get_camera_topics(),
             "traffic": {
                 "high_density_threshold": config_service.get_high_density_threshold(),
-                **{k: v for k, v in config_service.get_traffic_config().items() 
+                **{k: v for k, v in traffic_config.items() 
                    if k != "high_density_threshold"}
             },
             "weather": {

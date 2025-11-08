@@ -307,15 +307,17 @@ class WeatherService:
             WeatherData object with appropriate weather based on enabled markers
         """
         intersection_id = self.config_service.get_intersection_id()
-        intersections_weather_map = self.config_service.get_intersections_weather_map()
+        intersection_map = self.config_service.get_intersection_map()
+        weather_map = intersection_map.get("weather", {})
+        
         if self.config_service.get_weather_config().get("enable_fire_markers", False):
-            if intersection_id in intersections_weather_map.get(WeatherType.FIRES.value, []):
+            if intersection_id in weather_map.get(WeatherType.FIRES.value, []):
                 return self._load_mock_weather_from_file(WeatherType.FIRES)
         elif self.config_service.get_weather_config().get("enable_flood_markers", False):
-            if intersection_id in intersections_weather_map.get(WeatherType.FLOOD.value, []):
+            if intersection_id in weather_map.get(WeatherType.FLOOD.value, []):
                return self._load_mock_weather_from_file(WeatherType.FLOOD)
         elif self.config_service.get_weather_config().get("enable_storm_markers", False):
-            if intersection_id in intersections_weather_map.get(WeatherType.STORM.value, []):
+            if intersection_id in weather_map.get(WeatherType.STORM.value, []):
                 return self._load_mock_weather_from_file(WeatherType.STORM)
         return self._load_mock_weather_from_file()
 

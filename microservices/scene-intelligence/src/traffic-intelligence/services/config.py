@@ -26,7 +26,7 @@ class ConfigService:
     def __init__(self):
         """Initialize configuration service."""
         self.config = self._load_config()
-        self.intersections_weather_map = self._load_intersections_weather_map()
+        self.intersection_map = self._load_intersection_map()
         logger.info("Configuration service initialized", 
                    intersection_id=self.get_intersection_id())
     
@@ -131,23 +131,27 @@ class ConfigService:
         if "traffic" not in config:
             config["traffic"] = {}
         
-        incident_enabled = os.getenv("INCIDENT_REPORTING_ENABLED", "").lower() in ["true", "1", "yes"]
+        incident_enabled = os.getenv("INCIDENT_REPORTING_ENABLED", "true").lower() in ["true", "1", "yes"]
         config["traffic"]["incident_reporting_enabled"] = incident_enabled
-        config["traffic"]["incident_type"] = os.getenv("INCIDENT_TYPE", "clear")
+        
+        # Only set incident_type if explicitly provided via environment variable
+        incident_type_env = os.getenv("INCIDENT_TYPE")
+        if incident_type_env:
+            config["traffic"]["incident_type"] = incident_type_env
 
         return config
 
-    def _load_intersections_weather_map(self) -> dict:
-        """Load intersections configuration from file."""
-        intersections_file = os.getenv("INTERSECTIONS_WEATHER_MAP_FILE", "config/intersections_weather_map.json")
-        if os.path.exists(intersections_file):
+    def _load_intersection_map(self) -> dict:
+        """Load intersection map configuration from file."""
+        intersection_map_file = os.getenv("INTERSECTION_MAP_FILE", "config/intersection_map.json")
+        if os.path.exists(intersection_map_file):
             try:
-                with open(intersections_file, 'r') as f:
-                    intersections_weather_map = json.load(f)
-                logger.info("Loaded intersections configuration", path=intersections_file)
-                return intersections_weather_map
+                with open(intersection_map_file, 'r') as f:
+                    intersection_map = json.load(f)
+                logger.info("Loaded intersection map configuration", path=intersection_map_file)
+                return intersection_map
             except Exception as e:
-                logger.warning("Failed to load intersections config file", path=intersections_file, error=str(e))
+                logger.warning("Failed to load intersection map config file", path=intersection_map_file, error=str(e))
         return {}
 
     
@@ -210,8 +214,36 @@ class ConfigService:
         return self.config.get("traffic", {}).get("incident_reporting_enabled", False)
 
     def get_incident_type(self) -> str:
-        """Get the type of incident to report."""
-        return self.config.get("traffic", {}).get("incident_type")
+        """
+        Get the type of incident to report.
+        
+        Priority:
+        1. Explicitly configured incident_type (from env var or config file)
+        2. Default from intersection_map if incident reporting is enabled
+        3. "clear" as final fallback
+        """
+        # First check if incident_type is explicitly configured
+        configured_type = self.config.get("traffic", {}).get("incident_type")
+        if configured_type:
+            logger.debug("Using explicitly configured incident type", incident_type=configured_type)
+            return configured_type
+        
+        # If not configured but incident reporting is enabled, check intersection_map
+        if self.is_incident_reporting_enabled():
+            intersection_id = self.get_intersection_id()
+            incidents_map = self.intersection_map.get("incidents", {})
+            
+            # Check each incident type in the map
+            for incident_type, intersection_ids in incidents_map.items():
+                if intersection_id in intersection_ids:
+                    logger.info("Using default incident type from intersection_map", 
+                               intersection_id=intersection_id, 
+                               incident_type=incident_type)
+                    return incident_type
+        
+        # Default to "clear" if nothing is configured
+        logger.debug("No incident type configured, defaulting to clear")
+        return "clear"
     
     def update_config(self, key: str, value: any) -> None:
         """Update configuration value."""
@@ -228,6 +260,6 @@ class ConfigService:
         config_ref[keys[-1]] = value
         logger.info("Configuration updated", key=key, value=value)
 
-    def get_intersections_weather_map(self) -> dict:
-        """Get the intersections configuration."""
-        return self.intersections_weather_map
+    def get_intersection_map(self) -> dict:
+        """Get the intersection map configuration."""
+        return self.intersection_map

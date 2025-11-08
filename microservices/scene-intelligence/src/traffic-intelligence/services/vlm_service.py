@@ -383,7 +383,8 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
     def _parse_vlm_response(self, 
                            response_text: str,
                            traffic_snapshot: TrafficSnapshot,
-                           weather_data: Optional[WeatherData]) -> VLMAnalysisData:
+                           weather_data: Optional[WeatherData],
+                           incident_report: Optional[IncidentType] = None) -> VLMAnalysisData:
         """
         Parse VLM response into structured VLMAnalysisData.
         
@@ -391,6 +392,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             response_text: Raw VLM response
             traffic_snapshot: Traffic data used for analysis
             weather_data: Weather data used for analysis
+            incident_report: Reported incident type (optional)
             
         Returns:
             Structured VLMAnalysisData object
@@ -513,7 +515,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
                                 response_text: str,
                                 traffic_snapshot: TrafficSnapshot,
                                 weather_data: Optional[WeatherData],
-                                incident_report: Optional[IncidentType]) -> VLMAnalysisData:
+                                incident_report: Optional[IncidentType] = None) -> VLMAnalysisData:
         """
         Create fallback analysis when JSON parsing fails.
         
@@ -521,6 +523,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             response_text: Raw VLM response
             traffic_snapshot: Traffic data
             weather_data: Weather data
+            incident_report: Reported incident type (optional)
             
         Returns:
             Basic VLMAnalysisData with extracted information
