@@ -281,30 +281,27 @@ async def update_weather_markers(
 @router.put("/config/incident")
 async def update_incident_markers(
     request: Request,
-    incident_type: IncidentType = Query(description="Type of incident markers to enable (accident, crowding, roadblock, maintenance, clear)"),
+    incident_type: IncidentType = Query(description="Type of incident markers to set (accident, crowding, roadblock, maintenance, clear)"),
 ) -> Dict[str, Any]:
     """Update incident markers configuration."""
     try:
         config_service = get_config_service(request)
-        old_setting = config_service.get_traffic_config().get("incident_reporting_enabled", False)
         old_type = config_service.get_traffic_config().get("incident_type")
         
-        is_clear = incident_type == IncidentType.CLEAR
-        config_service.update_config("traffic.incident_reporting_enabled", not is_clear)
-        config_service.update_config("traffic.incident_type", None if is_clear else incident_type.value)
+        new_type = None if incident_type == IncidentType.CLEAR else incident_type.value
+        config_service.update_config("traffic.incident_type", new_type)
 
-        logger.info("Incident markers updated", incident_type=incident_type.value, 
-                    old_setting=old_setting, new_setting=not is_clear)
+        logger.info("Incident type updated", 
+                    old_type=old_type, 
+                    new_type=new_type)
 
         return {
-            "message": "Incident markers updated",
-            "incident_type": incident_type.value,
-            "old_setting": old_setting,
+            "message": "Incident type updated",
             "old_type": old_type,
-            "new_setting": not is_clear,
+            "new_type": new_type,
             "timestamp": datetime.utcnow().isoformat()
         }
 
     except Exception as e:
-        logger.error("Failed to update incident markers", error=str(e))
+        logger.error("Failed to update incident type", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")

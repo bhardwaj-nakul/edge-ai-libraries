@@ -26,7 +26,7 @@ class ConfigService:
     def __init__(self):
         """Initialize configuration service."""
         self.config = self._load_config()
-        self.intersections_weather_map = self._load_intersections_weather_map()
+        self.intersections_default_config = self._load_intersections_default_mapping()
         logger.info("Configuration service initialized", 
                    intersection_id=self.get_intersection_id())
     
@@ -126,26 +126,21 @@ class ConfigService:
             if "traffic" not in config:
                 config["traffic"] = {}
             config["traffic"]["analysis_window_seconds"] = int(os.getenv("TRAFFIC_BUFFER_DURATION"))
-        
-        # Incident reporting configuration
-        if "traffic" not in config:
-            config["traffic"] = {}
-        
-        incident_enabled = os.getenv("INCIDENT_REPORTING_ENABLED", "").lower() in ["true", "1", "yes"]
-        config["traffic"]["incident_reporting_enabled"] = incident_enabled
-        config["traffic"]["incident_type"] = os.getenv("INCIDENT_TYPE", "clear")
-
         return config
 
-    def _load_intersections_weather_map(self) -> dict:
+    def _load_intersections_default_mapping(self) -> dict:
         """Load intersections configuration from file."""
-        intersections_file = os.getenv("INTERSECTIONS_WEATHER_MAP_FILE", "config/intersections_weather_map.json")
+        intersections_file = os.getenv("INTERSECTIONS_DEFAULT_MAP_FILE", "config/intersections_default_map.json")
         if os.path.exists(intersections_file):
             try:
                 with open(intersections_file, 'r') as f:
-                    intersections_weather_map = json.load(f)
+                    intersections_default_config = json.load(f)
                 logger.info("Loaded intersections configuration", path=intersections_file)
-                return intersections_weather_map
+                if "traffic" not in self.config:
+                    self.config["traffic"] = {}
+                default_incidents = intersections_default_config.get("incidents", {})
+                self.config["traffic"]["incident_type"] = default_incidents.get(self.get_intersection_id(), "clear")
+                return intersections_default_config
             except Exception as e:
                 logger.warning("Failed to load intersections config file", path=intersections_file, error=str(e))
         return {}
@@ -204,14 +199,10 @@ class ConfigService:
     def get_high_density_threshold(self) -> int:
         """Get high density threshold for traffic analysis."""
         return self.config.get("traffic", {}).get("high_density_threshold", 5)
-    
-    def is_incident_reporting_enabled(self) -> bool:
-        """Check if incident reporting is enabled."""
-        return self.config.get("traffic", {}).get("incident_reporting_enabled", False)
 
     def get_incident_type(self) -> str:
         """Get the type of incident to report."""
-        return self.config.get("traffic", {}).get("incident_type")
+        return self.config.get("traffic").get("incident_type")
     
     def update_config(self, key: str, value: any) -> None:
         """Update configuration value."""
@@ -229,5 +220,9 @@ class ConfigService:
         logger.info("Configuration updated", key=key, value=value)
 
     def get_intersections_weather_map(self) -> dict:
-        """Get the intersections configuration."""
-        return self.intersections_weather_map
+        """Get the intersections weather map."""
+        return self.intersections_default_config.get("weather", {})
+
+    def get_intersections_incident_map(self) -> dict:
+        """Get the intersections incident map."""
+        return self.intersections_default_config.get("incidents", {})
