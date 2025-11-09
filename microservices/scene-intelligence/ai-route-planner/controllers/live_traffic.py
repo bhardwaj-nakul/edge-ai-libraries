@@ -2,8 +2,8 @@ import requests
 from typing import Optional, List
 
 from config import (
-    SCENE_INTELLIGENCE_API_BASE,
-    SCENE_INTELLIGENCE_ENDPOINTS,
+    IncidentStatus,
+    WeatherStatus,
 )
 from controllers.route_interface import RouteStatusInterface
 from schema import GeoCoordinates, LiveTrafficData
@@ -70,17 +70,21 @@ class LiveTrafficController(RouteStatusInterface):
                         logger.error(f"Error fetching data from intersection at {host}: {e}")
 
             # List to store the final response as list of LiveTrafficData
-            intersection_traffic_data = []
+            live_traffic_intersection_records = []
             
             # Look for intersections that match our current coordinates
             for response in api_responses:
-                # for intersection in response.get("data", {}):
-                # Get the intersection's coordinates
+                # Check if intersection data is present
                 intersection_data = response.get("data", {})
+                if not intersection_data:
+                    continue
+
+                # Get the intersection's coordinates and other details
                 logger.info(f"Processing intersection data: {intersection_data.get('intersection_name', 'Unknown')}")
                 intersection_lat = intersection_data.get("latitude")
                 intersection_lon = intersection_data.get("longitude")
-
+                intersection_name = intersection_data.get("intersection_name", "Unknown Intersection")
+                intersection_data_timestamp = intersection_data.get("timestamp", "")
                 traffic_density = intersection_data.get("total_density", 0)
 
                 # Get traffic description if available
@@ -89,28 +93,27 @@ class LiveTrafficController(RouteStatusInterface):
                 if vlm_analysis and "traffic_summary" in vlm_analysis:
                     traffic_description = vlm_analysis.get("traffic_summary")
 
-                # Get intersection images if available (base64 encoded)
-                intersection_images = {}
-                camera_images = response.get("camera_images", {})
-                for camera_id, image_data in camera_images.items():
-                    intersection_images[camera_id] = image_data.get("image_base64")
+                # Get weather and incident status if available
+                weather_status = response.get("weather_data", {}).get("short_forecast", WeatherStatus.CLEAR)
+                incident_status = response.get("incident", {}).get("incident_type", IncidentStatus.CLEAR)
 
                 # Create and return the LiveTrafficData
-                intersection_traffic_data.append(
+                live_traffic_intersection_records.append(
                     LiveTrafficData(
                         location_coordinates=GeoCoordinates(
                             latitude=intersection_lat,
                             longitude=intersection_lon,
                         ),
-                        intersection_name=intersection_data.get("intersection_name", "Unknown Intersection"),
-                        timestamp=intersection_data.get("timestamp", ""),
+                        intersection_name=intersection_name,
+                        timestamp=intersection_data_timestamp,
                         traffic_density=traffic_density,
                         traffic_description=traffic_description,
-                        intersection_images=intersection_images,
+                        weather_status=WeatherStatus(weather_status),
+                        incident_status=IncidentStatus(incident_status),
                     )
                 )
-                    
-            return intersection_traffic_data
+
+            return live_traffic_intersection_records
 
         except Exception as e:
             import traceback
