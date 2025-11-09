@@ -286,7 +286,7 @@ class WeatherService:
                     is_daytime=data.get("is_daytime"),
                     start_time=data.get("start_time"),
                     end_time=data.get("end_time"),
-                    weather_type=weather_type.value
+                    weather_type=weather_type
                 )
                 logger.info("Loaded mock weather data from file",
                             weather_type=weather_type.value,
