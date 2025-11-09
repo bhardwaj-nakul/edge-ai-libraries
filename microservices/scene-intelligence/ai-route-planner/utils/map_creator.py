@@ -78,13 +78,13 @@ class MapCreator:
 
         # Determine zoom level
         if max_diff > 20:
-            zoom = 6
-        elif max_diff > 10:
             zoom = 7
-        elif max_diff > 5:
+        elif max_diff > 10:
             zoom = 8
-        else:
+        elif max_diff > 5:
             zoom = 9
+        else:
+            zoom = 10
 
         return center_lat, center_lon, zoom
 
