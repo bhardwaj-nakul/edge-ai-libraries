@@ -73,7 +73,7 @@ def get_optimal_route(source: str, destination: str) -> tuple[str, str, str, Opt
         )
 
     # Start planning the route
-    next_data_source, route_issue, distance, is_sub_optimal, optimized_route_map, intersection_images = (
+    next_data_source, route_issue, distance, is_sub_optimal, optimized_route_map = (
         route_service.create_alternate_route_map(source, destination)
     )
 
@@ -84,20 +84,22 @@ def get_optimal_route(source: str, destination: str) -> tuple[str, str, str, Opt
             f"## Sub-optimal Route Found (All routes have high congestion). \n"
         )
 
-    if route_issue:
+    if route_issue and distance:
         thinking_message += ("### Route Updated due to "
             + f"{route_issue} \n\n ##### Total Distance for Updated Route : {distance:.2f} Kms\n\n"
         )
+    elif distance == 0.0 and route_issue:
+        thinking_message += f"## {route_issue} \n\n"
     else:
         thinking_message = (
-            f"### No traffic or weather issues found on current route."
+            f"### No traffic, weather issues or congestions found on current route."
              + f"\n\n ##### Total Distance : {distance:.2f} Kms \n\n"
         )
 
     # Set message to show Real-time Agent actions
     agent_status_msg = f"Active - Analysing {next_data_source} ..."
 
-    return agent_status_msg, thinking_message, optimized_route_map, intersection_images
+    return agent_status_msg, thinking_message, optimized_route_map
 
 
 def planner_agent_thread(source: str, destination: str):
@@ -117,15 +119,16 @@ def planner_agent_thread(source: str, destination: str):
 
             time.sleep(OPTIMIZATION_INTERVAL)
 
+            intersection_images = None
             if agent_iteration_count == 1:
                 # Start by getting direct shortest route. Shortest direct route needs to found only once.
                 agent_status_msg, thinking_output, map_output = get_direct_route(
                     source, destination
                 )
-                intersection_images = None
+                
             else:
                 # Get optimal route information from the agent
-                agent_status_msg, thinking_output, map_output, intersection_images = get_optimal_route(
+                agent_status_msg, thinking_output, map_output = get_optimal_route(
                     source, destination
                 )
 

@@ -1,5 +1,5 @@
 from operator import add
-from typing import Annotated, TypedDict
+from typing import Annotated, List, TypedDict
 
 from config import CongestionLevel, StaticOptimizerName, WeatherStatus
 from schema import GeoCoordinates
@@ -17,8 +17,7 @@ class OptimalRouteState(RouteState):
     weather_status: WeatherStatus
     event_name: str
 
-class LiveTrafficState(TypedDict):
-    route_name: str  # Name of the current optimal route file
+class LiveTrafficState(RouteState):
     intersection_name: str  # Name of the intersection where traffic is being reported
     timestamp: str  # Time of recording the live traffic data
     location_coordinates: GeoCoordinates  # Latitude and Longitude for the traffic
@@ -39,4 +38,6 @@ class RoutePlannerState(TypedDict):
     ]  # List of Route optimizers to be applied
     live_traffic: LiveTrafficState  # Details of live traffic recieved during real-time route optimization
     is_sub_optimal: bool  # Flag to indicate if the optimal route is sub-optimal
+    is_unique_route: bool  # Flag to indicate if only one unique route exists
     intersection_list: dict[str, GeoCoordinates]  # Map of all available intersection names to their coordinates
+    blocked_routes: List[str]  # List of routes blocked due to issues at all intersections

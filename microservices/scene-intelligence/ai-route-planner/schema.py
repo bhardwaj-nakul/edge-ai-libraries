@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 
-from config import CongestionLevel, WeatherStatus
+from config import CongestionLevel, IncidentStatus, WeatherStatus
 
 
 class GeoCoordinates(BaseModel):
@@ -31,7 +31,6 @@ class TrafficTrendsData(RouteCondition):
     congestion_level: Annotated[
         CongestionLevel, Field(description="Current congestion level at the location")
     ]
-
 
 class WeatherData(RouteCondition):
     """Pydantic model for weather information along a route"""
@@ -73,8 +72,11 @@ class LiveTrafficData(RouteCondition):
     traffic_description: Annotated[
         Optional[str], Field(description="Description of the traffic situation")
     ] = None
-    intersection_images: Annotated[
-        Optional[dict[str, str]], Field(description="Dictionary of base64 encoded images from different views of the intersection")
+    weather_status: Annotated[
+        Optional[WeatherStatus], Field(description="Current weather status at the location")
+    ] = None
+    incident_status: Annotated[
+        Optional[IncidentStatus], Field(description="Current incident status at the location")
     ] = None
 
 
