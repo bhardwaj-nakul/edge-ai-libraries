@@ -20,17 +20,19 @@ DEFAULT_LOCATION_COORDINATES = {
 
 # Directory where GPX files reside
 GPX_DIR: Path = Path(__file__).parent / "data" / "routes"
+IGNORED_ROUTES : list[str] = ["berkeley-eastpaloalto.gpx", "berkeley-sanbruno-sunnyvale.gpx"] 
 
 # Directory where route status (Weather, traffic, etc. ) data is stored
 ROUTE_STATUS_DIR: Path = Path(__file__).parent / "data" / "csv"
 
 # Real-time traffic API endpoint
 # Get the API BASE from env var or a default value is picked
-SCENE_INTELLIGENCE_API_BASE = os.getenv("SI_API_BASE", "http://localhost:8082")
-SCENE_INTELLIGENCE_ENDPOINTS = {
-    "traffic_summary": "/api/v1/traffic/directional/summary",
-    "update_threshold": "/api/v1/config/vlm/threshold"
-}
+# SCENE_INTELLIGENCE_API_BASE = os.getenv("SI_API_BASE", "http://localhost:8082")
+# SCENE_INTELLIGENCE_ENDPOINTS = {
+#     "traffic_summary": "/api/v1/traffic/directional/summary",
+#     "update_threshold": "/api/v1/config/vlm/threshold"
+# }
+# UPDATE : API Endpoints and Base now come from config file
 
 class CongestionLevel(Enum):
     LOW = "Low"
@@ -38,14 +40,24 @@ class CongestionLevel(Enum):
     HIGH = "High"
     SEVERE = "Severe"
 
+class IncidentStatus(Enum):
+    CLEAR = "clear"
+    ACCIDENT = "accident"
+    CROWDING = "crowding"
+    ROADBLOCK = "roadblock"
+    MAINTENANCE = "maintenance"
+
 class WeatherStatus(Enum):
-    SUNNY = "Sunny"
+    SUNNY = "sunny"
+    CLOUDY = "cloudy"
+    FOG = "fog"
+    RAINY = "rain"
+    SNOWY = "snow"
     CLEAR = "Clear"
-    CLOUDY = "Cloudy"
-    FOG = "Foggy"
-    RAINY = "Rainy"
-    STORMY = "Stormy"
-    SNOWY = "Snowy"
+    STORMY = "Severe thunderstorms"
+    FIRE = "Roadside Fire"
+    FLOOD = "Flash Floods"
+
 
 # Weather conditions that trigger alternate route search
 ADVERSE_WEATHER_CONDITIONS = [
@@ -53,7 +65,15 @@ ADVERSE_WEATHER_CONDITIONS = [
     WeatherStatus.RAINY,
     WeatherStatus.STORMY,
     WeatherStatus.SNOWY,
+    WeatherStatus.FIRE,
+    WeatherStatus.FLOOD,
 ]
+
+ROUTE_ISSUE_MAP: dict[str, WeatherStatus | IncidentStatus] = {
+    "berkeley-sanbruno.gpx": IncidentStatus.MAINTENANCE,
+    "berkeley-oakland-i880.gpx": WeatherStatus.FIRE,
+    "berkeley-dublin-sanjose.gpx": WeatherStatus.FIRE,
+}
 
 class StaticOptimizerName(Enum):
     """
@@ -96,6 +116,7 @@ MAP_COLORS = {
     "main_route": "#4285F4",
     "optimal_route": "#13B513",
     "start_marker": "#0AB438",
+    "blocked_routes": "#FF0000",
     "route_incident": "#FA1B07",
     "no_incident": "#193A58",
     "end_marker": "#FF9D00",
