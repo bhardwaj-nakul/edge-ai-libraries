@@ -37,12 +37,18 @@ def get_config_service(request):
 
 
 @router.get("/traffic/current", response_model=Dict[str, Any])
-async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
+async def get_current_traffic_intelligence(
+    request: Request,
+    images: bool = Query(default=True, description="Include camera images in response")
+) -> Dict[str, Any]:
     """
     Get current traffic intelligence data for the intersection.
     
     Returns complete traffic intelligence response matching data.json schema
     with weather data and VLM analysis.
+    
+    Args:
+        images: If False, camera_images will be excluded from response to reduce size
     """
     try:
         data_aggregator: DataAggregatorService = get_data_aggregator(request)
@@ -52,6 +58,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
         
         if not traffic_response:
             raise HTTPException(status_code=404, detail="No traffic data available")
+        
+        # Get incident status from config
+        config_service = get_config_service(request)
+        incident_type_str = config_service.get_incident_type()
         
         # Convert to dict for JSON response
         response_dict = {
@@ -80,7 +90,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "east_timestamp": traffic_response.data.east_timestamp,
                 "west_timestamp": traffic_response.data.west_timestamp,
             },
-            "camera_images": traffic_response.camera_images,
+            "incident": {
+                "reporting_enabled": incident_type_str is not None and incident_type_str != "clear",
+                "incident_type": incident_type_str if incident_type_str else "clear"
+            },
             "weather_data": {
                 "name": traffic_response.weather_data.name,
                 "temperature": traffic_response.weather_data.temperature,
@@ -115,6 +128,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "analysis_timestamp": traffic_response.vlm_analysis.analysis_timestamp.isoformat() if traffic_response.vlm_analysis.analysis_timestamp else None
             }
         }
+        
+        # Add camera images only if requested
+        if images:
+            response_dict["camera_images"] = traffic_response.camera_images
         
         logger.info("Current traffic intelligence served",
                    intersection_id=traffic_response.intersection_id,
