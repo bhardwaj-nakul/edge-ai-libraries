@@ -109,7 +109,7 @@ def get_optimal_route(source: str, destination: str) -> tuple[str, str, str, Opt
 
     if is_sub_optimal:
         thinking_message += (
-            f"## Sub-optimal Route Found (All routes have high congestion). \n"
+            f"## Sub-optimal Route Found. \n"
         )
 
     if route_issue and distance:
@@ -506,14 +506,14 @@ def create_gradio_interface() -> gr.Blocks:
         with gr.Row(elem_classes=["horizontal-search"]):
             with gr.Column(scale=3):
                 start_dropdown = gr.Dropdown(
-                    choices=default_locations,
+                    choices=[default_locations[0]],
                     label="From",
                     value=default_locations[0],
                     container=True,
                 )
             with gr.Column(scale=3):
                 end_dropdown = gr.Dropdown(
-                    choices=default_locations,
+                    choices=[default_locations[-1]],
                     label="To",
                     value=default_locations[-1],
                     container=True,

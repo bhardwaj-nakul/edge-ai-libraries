@@ -70,7 +70,7 @@ ADVERSE_WEATHER_CONDITIONS = [
 
 ROUTE_ISSUE_MAP: dict[str, WeatherStatus | IncidentStatus] = {
     "berkeley-sanbruno.gpx": IncidentStatus.MAINTENANCE,
-    "berkeley-oakland-i880.gpx": WeatherStatus.FIRE,
+    "berkeley-oakland-i880.gpx": WeatherStatus.FLOOD,
     "berkeley-dublin-sanjose.gpx": WeatherStatus.FIRE,
 }
 
