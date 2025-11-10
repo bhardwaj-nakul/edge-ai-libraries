@@ -125,9 +125,11 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application for traffic intelligence."""
+    api_name = os.getenv("API_NAME", "Traffic Intelligence Service")
+    
     app = FastAPI(
-        title="Traffic Intelligence API",
-        description="Lightweight traffic analysis service for single intersection monitoring",
+        title=api_name,
+        description="Single intersection monitoring Agent API for traffic analysis and alerts",
         version="1.0.0",
         lifespan=lifespan
     )

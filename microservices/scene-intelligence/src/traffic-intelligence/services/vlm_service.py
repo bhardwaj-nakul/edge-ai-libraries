@@ -11,7 +11,7 @@ import structlog
 
 from models import (
     WeatherData, VLMAnalysisData, VLMAlert, AlertLevel, AlertType, 
-    CameraImage, TrafficSnapshot, WeatherType
+    CameraImage, TrafficSnapshot, WeatherType, IncidentType
 )
 from .config import ConfigService
 from .weather_service import WeatherService
@@ -90,15 +90,28 @@ class VLMService:
         Returns:
             VLMAnalysisData with structured analysis and alerts
         """
+        # Initialize incident_reported outside try block to ensure it's always available
+        incident_reported = None
+        try:
+            incident_type_str = self.config.get_incident_type()
+            # If incident type is "clear", treat it as no incident (None)
+            if incident_type_str and incident_type_str != "clear":
+                incident_reported = IncidentType(incident_type_str)
+            else:
+                incident_reported = None
+        except Exception as e:
+            logger.warning("Failed to get incident type, using None", error=str(e))
+            incident_reported = None
+        
         try:
             try:
                 self.weather_data = await self.weather_service.get_current_weather()
             except Exception as e:
                 logger.warning("Weather fetch failed during VLM analysis, using cached or default data", error=str(e))
                 self.weather_data = self.weather_data or self.weather_service.get_default_weather()
-            
-            # Create structured prompt with weather context
-            prompt = self._create_structured_prompt(traffic_snapshot, self.weather_data)
+
+            # Create structured prompt with weather context and incident data
+            prompt = self._create_structured_prompt(traffic_snapshot, self.weather_data, incident_reported)
 
             logger.info("Generated VLM prompt", prompt=prompt)
             
@@ -115,7 +128,7 @@ class VLMService:
             if analysis_result:
                 # Parse structured response
                 structured_analysis = self._parse_vlm_response(
-                    analysis_result, traffic_snapshot, self.weather_data
+                    analysis_result, traffic_snapshot, self.weather_data, incident_reported
                 )
                 
                 # Cache the analysis
@@ -131,12 +144,23 @@ class VLMService:
                 
                 return structured_analysis
             else:
-                logger.warning("VLM analysis returned no result")
-                return None
+                logger.warning("VLM service returned no result, using fallback analysis")
+                # Use fallback analysis instead of returning None
+                fallback_analysis = self._create_fallback_analysis(
+                    "VLM service returned no result", traffic_snapshot, self.weather_data, incident_reported
+                )
+                logger.info("Using fallback analysis", 
+                           alerts_count=len(fallback_analysis.alerts))
+                return fallback_analysis
                 
         except Exception as e:
             logger.error("VLM analysis failed", error=str(e))
-            return None
+            fallback_analysis = self._create_fallback_analysis(
+                    "VLM service returned no result", traffic_snapshot, self.weather_data, incident_reported
+                )
+            logger.info("Using fallback analysis", 
+                           alerts_count=len(fallback_analysis.alerts))
+            return fallback_analysis
     
     async def analyze_traffic_non_blocking(self, traffic_snapshot: TrafficSnapshot) -> Optional[VLMAnalysisData]:
         """
@@ -203,7 +227,8 @@ class VLMService:
     
     def _create_structured_prompt(self, 
                                 traffic_snapshot: TrafficSnapshot,
-                                weather_data: Optional[WeatherData]) -> str:
+                                weather_data: Optional[WeatherData],
+                                incident_reported: Optional[IncidentType]) -> str:
         """
         Create structured prompt for VLM analysis with weather context.
         
@@ -237,9 +262,14 @@ class VLMService:
             weather_context = f"""Weather conditions at the intersection: 
 - Temperature: {weather_data.temperature}°{weather_data.temperature_unit}
 - Conditions: {weather_data.detailed_forecast}"""
-    
+            
+        # Incident context - only add if there's an actual incident (not clear/None)
+        incident_context = "No reported incidents."
+        if incident_reported and incident_reported != IncidentType.CLEAR:
+            incident_context = f"REPORTED INCIDENT: {incident_reported.value}. Please prioritize this incident in your analysis and provide specific guidance related to this incident type."
+
         # Create structured prompt
-        prompt = f"""Analyze traffic conditions at a traffic intersection with 4 cameras in each of the 4 directions - East, North, South, West.
+        prompt = f"""Analyze traffic conditions at a traffic intersection with 4 cameras in each of the 4 directions.
 
 TRAFFIC DATA:
 Total number of vehicles on intersection : {traffic_snapshot.total_count}
@@ -248,18 +278,22 @@ Directional traffic breakdown - Number of vehicles per direction:
 
 {weather_context}
 
+INCIDENT DATA:
+{incident_context}
+
 ANALYSIS REQUIREMENTS:
 Please provide a structured analysis in JSON format with the following key details about the traffic situation:
 
-1. "analysis": Detailed human like overview of current traffic conditions based on the image data for the intersection's current state, referencing specific traffic image observations, traffic patterns, and weather impacts, total number of vehicles and directional traffic breakdown.
+1. "analysis": Detailed human like overview of current traffic conditions based on the image data for the intersection's current state, referencing specific traffic image observations, traffic patterns, weather impacts, and any reported incidents. If incident is reported, describe its impact on traffic flow and safety.
 2. "alerts": This field is an array of alert objects based on the traffic analysis. Each alert object should strictly contain:
    - "alert_type": value should be strictly one of the following: [congestion, weather_related, road_condition, accident, maintenance, normal]
    - "level": value should be strictly one of the following: [info, warning, critical]
-   - "description": detailed context-rich alert description. This is based on the detailed traffic analysis.
+   - "description": detailed context-rich alert description. This is based on the detailed traffic analysis. If an incident is reported, ensure it is reflected in the alerts with appropriate severity.
    - "weather_related": strictly a boolean value. If weather is a factor for the traffic situation value should be True, otherwise False
+   
 3. "recommendations": Array of recommendation objects helping to make decisions while travelling through this intersection:
-   - "recommendation": Clear advice for traffic management or safety
-   - "priority": strictly one of the following: [high, medium, low]. These values to be chosen on the basis of how much strictly the recommendation should be followed. For example, for extreme congestions and weather conditions recommendation should be strictly followed otherwise it can be of low priority.
+   - "recommendation": Clear advice for traffic management or safety. If an incident is reported, provide specific recommendations related to that incident type.
+   - "priority": strictly one of the following: [high, medium, low].
 Strictly respond ONLY with valid JSON format enclosed in markdown code blocks like:
 ```json
 {{
@@ -362,7 +396,8 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
     def _parse_vlm_response(self, 
                            response_text: str,
                            traffic_snapshot: TrafficSnapshot,
-                           weather_data: Optional[WeatherData]) -> VLMAnalysisData:
+                           weather_data: Optional[WeatherData],
+                           incident_reported: Optional[IncidentType]) -> VLMAnalysisData:
         """
         Parse VLM response into structured VLMAnalysisData.
         
@@ -379,11 +414,18 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             logger.debug(response_text)
             json_content = self._extract_json_from_response(response_text)
             
+            
+            # If extraction failed or returned None, use fallback
+            if json_content is None or len(json_content.strip()) == 0:
+                logger.warning("JSON extraction failed or returned empty content, using fallback")
+                return self._create_fallback_analysis(response_text, traffic_snapshot, weather_data, incident_reported)
+            
             # Parse JSON response
+            logger.info("Attempting to parse JSON content")
             response_data = json.loads(json_content)
             
-            logger.debug(response_data)
-            logger.debug("VLM response parsed as JSON", 
+            logger.info("JSON parsing successful", 
+                       response_type=type(response_data).__name__,
                        response_keys=list(response_data.keys()) if isinstance(response_data, dict) else "non-dict")
             
             # Parse alerts
@@ -431,14 +473,20 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             return analysis
             
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse VLM JSON response", error=str(e), response=response_text[:200])
+            logger.error("Failed to parse VLM JSON response, using fallback", 
+                        error=str(e), 
+                        response_preview=response_text[:200])
             # Create fallback analysis
-            return self._create_fallback_analysis(response_text, traffic_snapshot, weather_data)
+            fallback = self._create_fallback_analysis(response_text, traffic_snapshot, weather_data, incident_reported)
+            return fallback
         except Exception as e:
-            logger.error("Failed to parse VLM response", error=str(e))
-            return self._create_fallback_analysis(response_text, traffic_snapshot, weather_data)
-    
-    def _extract_json_from_response(self, response_text: str) -> str:
+            logger.error("Failed to parse VLM response, using fallback", 
+                        error=str(e),
+                        error_type=type(e).__name__)
+            fallback = self._create_fallback_analysis(response_text, traffic_snapshot, weather_data, incident_reported)
+            return fallback
+
+    def _extract_json_from_response(self, response_text: str) -> Optional[str]:
         """
         Extract JSON content from VLM response, handling markdown code blocks.
         
@@ -446,7 +494,7 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             response_text: Raw VLM response text
             
         Returns:
-            JSON string content
+            JSON string content or None if extraction fails
         """
         # Check if response contains markdown code blocks
         if "```json" in response_text:
@@ -481,17 +529,18 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             
             if end_brace > start_brace:
                 json_content = response_text[start_brace:end_brace + 1]
-                logger.debug("Extracted JSON from response text", json_length=len(json_content))
+                logger.info("Extracted JSON from response text", json_length=len(json_content))
                 return json_content
         
-        # Return original text if no JSON structure found
-        logger.warning("No JSON structure found in response, returning original text")
-        return response_text
+        # Return None if no valid JSON structure found
+        logger.warning("No valid JSON structure found in response")
+        return None
     
     def _create_fallback_analysis(self, 
                                 response_text: str,
                                 traffic_snapshot: TrafficSnapshot,
-                                weather_data: Optional[WeatherData]) -> VLMAnalysisData:
+                                weather_data: Optional[WeatherData],
+                                incident_reported: Optional[IncidentType]) -> VLMAnalysisData:
         """
         Create fallback analysis when JSON parsing fails.
         
@@ -499,49 +548,98 @@ Strictly respond ONLY with valid JSON format enclosed in markdown code blocks li
             response_text: Raw VLM response
             traffic_snapshot: Traffic data
             weather_data: Weather data
+            incident_reported: Incident type if reported
             
         Returns:
             Basic VLMAnalysisData with extracted information
         """
-        # Basic traffic analysis from data
-        high_density_threshold = self.config_service.get_high_density_threshold()
-        high_density_directions = [
-            direction for direction, count in traffic_snapshot.directional_counts.items()
-            if count >= high_density_threshold
-        ]
-        
-        traffic_summary = f"High traffic detected in {len(high_density_directions)} direction(s) with total {traffic_snapshot.total_count} vehicles at the Intersection"
-        
-        # Create basic alert
-        alerts = []
-        if high_density_directions:
-            weather_impact = weather_data and weather_data.weather_type in {WeatherType.FIRES, WeatherType.STORM, WeatherType.FLOOD}
-            description = f"High traffic density in {', '.join(high_density_directions)} direction(s)."
-
-            if weather_impact:
-                description = self.weather_service.get_weather_description(weather_data.weather_type)
-
+        try:
+            # Create basic alert
+            alerts = []
+            weather_impact = False
+            
+            # Basic traffic analysis from data
+            high_density_threshold = self.config_service.get_high_density_threshold()
+            
+            # Use high traffic statement only if total count exceeds threshold
+            if traffic_snapshot.total_count > high_density_threshold:
+                traffic_summary = f"High traffic detected with total {traffic_snapshot.total_count} vehicles at the Intersection"
                 alert = VLMAlert(
-                    alert_type=AlertType.WEATHER_RELATED,
-                    level=AlertLevel.CRITICAL,
-                    description=description,
-                    weather_related=weather_impact
-                )
+                        alert_type=AlertType.CONGESTION,
+                        level=AlertLevel.WARNING if traffic_snapshot.total_count > high_density_threshold * 1.5 else AlertLevel.INFO,
+                        description=f"High traffic detected at the Intersection" if traffic_snapshot.total_count > high_density_threshold * 1.5 else f"Normal Traffic at the Intersection",
+                        weather_related=weather_impact
+                    )
+                alerts.append(alert)
             else:
-                alert = VLMAlert(
-                    alert_type=AlertType.CONGESTION,
-                    level=AlertLevel.WARNING if traffic_snapshot.total_count > high_density_threshold * 2 else AlertLevel.INFO,
-                    description=description,
-                    weather_related=weather_impact
-                )
-            alerts.append(alert)
-        
-        return VLMAnalysisData(
-            traffic_summary=traffic_summary,
-            alerts=alerts,
-            recommendations=["Monitor traffic flow", "Consider traffic signal optimization"],
-            analysis_timestamp=datetime.utcnow()
-        )
+                traffic_summary = f"Traffic conditions monitored with {traffic_snapshot.total_count} vehicles at the Intersection"
+            
+            # Weather alert
+            try:
+                if weather_data:
+                    weather_impact = True
+                    
+                    # Handle both WeatherType enum and string (defensive programming)
+                    weather_type = weather_data.weather_type
+                    if isinstance(weather_type, str):
+                        weather_type = WeatherType(weather_type)
+                    
+                    CRITICAL_WEATHER = {WeatherType.FIRES, WeatherType.STORM, WeatherType.FLOOD}
+                    alert_level = AlertLevel.CRITICAL if weather_type in CRITICAL_WEATHER else AlertLevel.WARNING
+                    
+                    alert = VLMAlert(
+                        alert_type=AlertType.WEATHER_RELATED,
+                        level=alert_level,
+                        description=self.weather_service.get_weather_description(weather_type),
+                        weather_related=weather_impact
+                    )
+                    alerts.append(alert)
+            except Exception as e:
+                logger.warning("Failed to create weather alert in fallback analysis", error=str(e))
+
+            # Incident alert
+            try:
+                if incident_reported and incident_reported != IncidentType.CLEAR:
+                    description = f"Incident reported: {incident_reported.value}."
+                    alert_type, level = incident_reported.alert_info
+                    alert = VLMAlert(
+                        alert_type=alert_type,
+                        level=level,
+                        description=description,
+                        weather_related=weather_impact
+                    )
+                    alerts.append(alert)
+            except Exception as e:
+                logger.warning("Failed to create incident alert in fallback analysis", error=str(e))
+            
+            fallback_data = VLMAnalysisData(
+                traffic_summary=traffic_summary,
+                alerts=alerts,
+                recommendations=["Monitor traffic flow", "Consider traffic signal optimization"],
+                analysis_timestamp=datetime.utcnow()
+            )
+            
+            logger.info("Fallback analysis created successfully", 
+                       summary=traffic_summary,
+                       alerts_count=len(alerts),
+                       alert_types=[alert.alert_type.value for alert in alerts])
+            
+            return fallback_data
+            
+        except Exception as e:
+            logger.error("Critical error in fallback analysis, returning minimal analysis", error=str(e))
+            # Return absolute minimum fallback in case of complete failure
+            return VLMAnalysisData(
+                traffic_summary=f"Traffic analysis unavailable. Total vehicles: {traffic_snapshot.total_count}",
+                alerts=[VLMAlert(
+                    alert_type=AlertType.NORMAL,
+                    level=AlertLevel.INFO,
+                    description="Traffic monitoring active",
+                    weather_related=False
+                )],
+                recommendations=["Monitor traffic conditions"],
+                analysis_timestamp=datetime.utcnow()
+            )
     
     
     def clear_cache(self) -> None:

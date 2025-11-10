@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from services.data_aggregator import DataAggregatorService
-from models import WeatherType
+from models import WeatherType, IncidentType
 
 
 logger = structlog.get_logger(__name__)
@@ -37,12 +37,17 @@ def get_config_service(request):
 
 
 @router.get("/traffic/current", response_model=Dict[str, Any])
-async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
+async def get_current_traffic_intelligence(
+    request: Request,
+    images: bool = Query(default=True, description="Include camera images in response")
+) -> Dict[str, Any]:
     """
     Get current traffic intelligence data for the intersection.
     
-    Returns complete traffic intelligence response matching data.json schema
-    with weather data and VLM analysis.
+    Returns complete traffic intelligence response using weather data and VLM analysis.
+    
+    Args:
+        images: If False, camera_images will be excluded from response to reduce size
     """
     try:
         data_aggregator: DataAggregatorService = get_data_aggregator(request)
@@ -52,6 +57,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
         
         if not traffic_response:
             raise HTTPException(status_code=404, detail="No traffic data available")
+        
+        # Get incident status from config
+        config_service = get_config_service(request)
+        incident_type_str = config_service.get_incident_type()
         
         # Convert to dict for JSON response
         response_dict = {
@@ -80,7 +89,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "east_timestamp": traffic_response.data.east_timestamp,
                 "west_timestamp": traffic_response.data.west_timestamp,
             },
-            "camera_images": traffic_response.camera_images,
+            "incident": {
+                "reporting_enabled": incident_type_str is not None and incident_type_str != "clear",
+                "incident_type": incident_type_str if incident_type_str else "clear"
+            },
             "weather_data": {
                 "name": traffic_response.weather_data.name,
                 "temperature": traffic_response.weather_data.temperature,
@@ -115,6 +127,10 @@ async def get_current_traffic_intelligence(request: Request) -> Dict[str, Any]:
                 "analysis_timestamp": traffic_response.vlm_analysis.analysis_timestamp.isoformat() if traffic_response.vlm_analysis.analysis_timestamp else None
             }
         }
+        
+        # Add camera images only if requested
+        if images:
+            response_dict["camera_images"] = traffic_response.camera_images
         
         logger.info("Current traffic intelligence served",
                    intersection_id=traffic_response.intersection_id,
@@ -175,7 +191,7 @@ async def get_current_weather(request: Request) -> Dict[str, Any]:
 
 @router.get("/config")
 async def get_service_config(request: Request) -> Dict[str, Any]:
-    """Get service configuration (excluding sensitive data)."""
+    """Get service configuration."""
     try:
         config_service = get_config_service(request)
         
@@ -232,11 +248,11 @@ async def update_threshold(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/config/weather")
-async def update_weather_markers(
+async def update_climate_threat_markers(
     request: Request,
-    marker_type: WeatherType = Query(description="Type of weather markers to enable (clear, fires, storm, flood)"),
+    marker_type: WeatherType = Query(description="Type of Climate Threat markers to enable (clear, fires, storm, flood)"),
 ) -> Dict[str, Any]:
-    """Update weather markers configuration."""
+    """Update Climate Threat markers configuration."""
     try:
         config_service = get_config_service(request)
         key_map = {WeatherType.CLEAR: None, WeatherType.FIRES: "enable_fire_markers", WeatherType.STORM: "enable_storm_markers", 
@@ -258,7 +274,7 @@ async def update_weather_markers(
         else:
             raise HTTPException(status_code=400, detail="Invalid marker type")
 
-        logger.info("Weather markers configuration updated", 
+        logger.info("Climate Threat markers configuration updated", 
                    marker_type=marker_type.value,
                    old_setting=old_setting,
                    new_setting=True if config_key else False)
@@ -267,7 +283,7 @@ async def update_weather_markers(
         await weather_service.get_current_weather(force_refresh=True)
 
         return {
-            "message": "Weather markers configuration updated successfully",
+            "message": "Climate Threat markers configuration updated successfully",
             "marker_type": marker_type.value,
             "old_setting": old_setting,
             "new_setting": True if config_key else False,
@@ -275,5 +291,33 @@ async def update_weather_markers(
         }
 
     except Exception as e:
-        logger.error("Failed to update weather markers", error=str(e))
+        logger.error("Failed to update Climate Threat markers", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/config/incident")
+async def update_incident_markers(
+    request: Request,
+    incident_type: IncidentType = Query(description="Set the incident markers at the intersection"),
+) -> Dict[str, Any]:
+    """Update incident markers configuration."""
+    try:
+        config_service = get_config_service(request)
+        old_type = config_service.get_traffic_config().get("incident_type")
+        
+        new_type = incident_type.value
+        config_service.update_config("traffic.incident_type", new_type)
+
+        logger.info("Incident type updated", 
+                    old_type=old_type, 
+                    new_type=new_type)
+
+        return {
+            "message": "Incident type updated",
+            "old_type": old_type,
+            "new_type": new_type,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error("Failed to update incident type", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")

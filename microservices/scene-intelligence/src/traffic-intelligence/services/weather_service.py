@@ -46,10 +46,10 @@ class WeatherService:
         self.use_mock = self.weather_config.get("use_mock", False)
         self.mock_data_file = "config/weather.json"
         self.mock_weather_descriptions = {
-            "clear": "Clear weather conditions with optimal driving visibility and normal traffic flow.",
-            "fires": "Active roadside fires causing reduced visibility, lane closures, and traffic delays.",
-            "storm": "Severe storm conditions with heavy rain, strong winds causing hazardous driving.",
-            "flood": "Flooding on roadways forcing detours, road closures, and severe traffic disruptions."
+            "clear": "Clear conditions with 9 mph winds from the N.",
+            "fires": "Active roadside fire reducing visibility ~30%  and slowing traffic.",
+            "storm": "Stormy conditions with heavy rain and strong winds expected.",
+            "flood": "Flood conditions with submerged roads and significant traffic disruptions."
         }
 
         logger.info("Weather service initialized", 
@@ -286,7 +286,7 @@ class WeatherService:
                     is_daytime=data.get("is_daytime"),
                     start_time=data.get("start_time"),
                     end_time=data.get("end_time"),
-                    weather_type=weather_type.value
+                    weather_type=weather_type
                 )
                 logger.info("Loaded mock weather data from file",
                             weather_type=weather_type.value,
@@ -306,16 +306,16 @@ class WeatherService:
         Returns:
             WeatherData object with appropriate weather based on enabled markers
         """
-        intersection_name = self.config_service.get_intersection_name()
+        intersection_id = self.config_service.get_intersection_id()
         intersections_weather_map = self.config_service.get_intersections_weather_map()
         if self.config_service.get_weather_config().get("enable_fire_markers", False):
-            if intersection_name in intersections_weather_map.get(WeatherType.FIRES.value, []):
+            if intersection_id in intersections_weather_map.get(WeatherType.FIRES.value, []):
                 return self._load_mock_weather_from_file(WeatherType.FIRES)
         elif self.config_service.get_weather_config().get("enable_flood_markers", False):
-            if intersection_name in intersections_weather_map.get(WeatherType.FLOOD.value, []):
+            if intersection_id in intersections_weather_map.get(WeatherType.FLOOD.value, []):
                return self._load_mock_weather_from_file(WeatherType.FLOOD)
         elif self.config_service.get_weather_config().get("enable_storm_markers", False):
-            if intersection_name in intersections_weather_map.get(WeatherType.STORM.value, []):
+            if intersection_id in intersections_weather_map.get(WeatherType.STORM.value, []):
                 return self._load_mock_weather_from_file(WeatherType.STORM)
         return self._load_mock_weather_from_file()
 
