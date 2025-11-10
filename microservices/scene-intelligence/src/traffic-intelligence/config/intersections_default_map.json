@@ -5,20 +5,15 @@
             "b3137b79ed73094c",
             "6c5ebc4907023480"
         ],
-        "storm": [
+        "flood": [
             "8f472ac84175b214",
             "f3c7c78c98ef5851",
             "8439e8792a1a0175"
-        ],
-        "flood": [
-            "bb3822c44f23e6c8",
-            "d0e8b23e6b48f6e1",
-            "65363a6c1971f704"
         ]
     },
     "incidents": {
         "bb3822c44f23e6c8": "maintenance",
         "d0e8b23e6b48f6e1": "maintenance",
-        "6c5ebc4907023480": "maintenance"
+        "65363a6c1971f704": "maintenance"
     }
 }
