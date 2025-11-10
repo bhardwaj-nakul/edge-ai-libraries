@@ -125,8 +125,15 @@ class MapCreator:
         self,
         map_obj: folium.Map,
         intersections: list[tuple[str, float, float]],
+        live_traffic_data_list: Optional[List] = None,
     ) -> None:
         """Add markers for all intersections available for routing"""
+        # Create a mapping from intersection name to traffic data for quick lookup
+        traffic_data_map = {}
+        if live_traffic_data_list:
+            for traffic_data in live_traffic_data_list:
+                traffic_data_map[traffic_data.intersection_name] = traffic_data
+
         intersection_icon_html = f"""
         <div style="
             background-color: {self.map_colors["no_incident"]};
@@ -149,11 +156,42 @@ class MapCreator:
         """
 
         for intersection in intersections:
+            intersection_name = intersection[0]
+            
+            # Create popup content with traffic data if available
+            popup_html = f"<b>{intersection_name}</b>"
+            
+            if intersection_name in traffic_data_map:
+                traffic_data = traffic_data_map[intersection_name]
+                popup_html = f"""
+                <div style="font-family: Arial, sans-serif; width: 420px;">
+                    <h4 style="margin: 0 0 8px 0; color: #1a73e8;">{intersection_name}</h4>
+                    <hr style="margin: 0 0 8px 0; border: none; border-top: 1px solid #e0e0e0;">
+                    <div style="margin: 0 0 6px 0; font-size: 13px;">
+                        <strong>Traffic Density:</strong> {traffic_data.traffic_density} vehicles
+                    </div>
+                    <div style="margin: 0 0 6px 0; font-size: 13px;">
+                        <strong>Location:</strong>
+                        Lat: {traffic_data.location_coordinates.latitude:.5f}, Lon: {traffic_data.location_coordinates.longitude:.5f}
+                    </div>
+                """
+                
+                if traffic_data.traffic_description:
+                    # Truncate description if too long
+                    description = traffic_data.traffic_description
+                    popup_html += f"""
+                    <div style="margin: 0 0 8px 0; font-size: 13px;">
+                        <strong>Traffic Description:</strong>
+                        <div style="font-size: 12px; color: #555; margin-top: 3px;">{description}</div>
+                    </div>
+                    """ 
+                popup_html += "</div>"
+            
             folium.Marker(
                 location=[intersection[1], intersection[2]],
                 popup=folium.Popup(
-                    f"<b>{intersection[0]}</b>",
-                    max_width=200,
+                    popup_html,
+                    max_width=440,
                 ),
                 icon=folium.DivIcon(
                     html=intersection_icon_html, icon_size=(10, 10), icon_anchor=(5, 5)
@@ -221,6 +259,48 @@ class MapCreator:
             #             html=no_incident_icon_html, icon_size=(20, 20), icon_anchor=(10, 10)
             #         ),
             #     ).add_to(map_obj)
+
+    def add_game_mode_markers(self, map_obj: folium.Map, game_data: dict) -> None:
+        """Add fire and flood emoji markers for game mode"""
+        # Add fire emojis
+        for fire in game_data.get("fire_emojis", []):
+            fire_html = f"""
+            <div style="
+                font-size: 22px;
+                text-align: center;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            ">{fire['emoji']}</div>
+            """
+            folium.Marker(
+                location=[fire["latitude"], fire["longitude"]],
+                popup=folium.Popup(
+                    f"<b>{fire['label']}</b><br>{fire['emoji']} Fire hazard area",
+                    max_width=200,
+                ),
+                icon=folium.DivIcon(
+                    html=fire_html, icon_size=(30, 30), icon_anchor=(15, 15)
+                ),
+            ).add_to(map_obj)
+
+        # Add flood emojis
+        for flood in game_data.get("flood_emojis", []):
+            flood_html = f"""
+            <div style="
+                font-size: 22px;
+                text-align: center;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            ">{flood['emoji']}</div>
+            """
+            folium.Marker(
+                location=[flood["latitude"], flood["longitude"]],
+                popup=folium.Popup(
+                    f"<b>{flood['label']}</b><br>{flood['emoji']} Flood risk area",
+                    max_width=200,
+                ),
+                icon=folium.DivIcon(
+                    html=flood_html, icon_size=(30, 30), icon_anchor=(15, 15)
+                ),
+            ).add_to(map_obj)
 
 
     def add_location_markers(

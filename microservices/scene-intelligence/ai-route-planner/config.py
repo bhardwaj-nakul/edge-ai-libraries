@@ -4,8 +4,6 @@ from pathlib import Path
 
 # Configs and Constants for the Route Planner Application
 
-CONFIG_FILE: Path = Path(__file__).parent / "config.json"
-
 # Default locations and coordinates
 DEFAULT_LOCATIONS = [
     "Berkeley, California",
@@ -24,6 +22,7 @@ IGNORED_ROUTES : list[str] = ["berkeley-eastpaloalto.gpx", "berkeley-sanbruno-su
 
 # Directory where route status (Weather, traffic, etc. ) data is stored
 ROUTE_STATUS_DIR: Path = Path(__file__).parent / "data" / "csv"
+CONFIG_FILE: Path = Path(__file__).parent / "data" / "config.json"
 
 # Real-time traffic API endpoint
 # Get the API BASE from env var or a default value is picked

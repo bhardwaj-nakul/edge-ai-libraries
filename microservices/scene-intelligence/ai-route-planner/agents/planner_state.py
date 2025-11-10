@@ -41,3 +41,4 @@ class RoutePlannerState(TypedDict):
     is_unique_route: bool  # Flag to indicate if only one unique route exists
     intersection_list: dict[str, GeoCoordinates]  # Map of all available intersection names to their coordinates
     blocked_routes: List[str]  # List of routes blocked due to issues at all intersections
+    live_traffic_data_list: list  # Complete list of LiveTrafficData for all intersections

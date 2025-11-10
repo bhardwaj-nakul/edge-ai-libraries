@@ -346,6 +346,7 @@ class RoutePlanner:
             "intersection_list": intersection_list,
             "blocked_routes": blocked_routes,
             "is_unique_route": unique_route,
+            "live_traffic_data_list": live_route_status,
         }
 
 
