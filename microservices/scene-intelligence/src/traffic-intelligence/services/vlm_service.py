@@ -90,15 +90,25 @@ class VLMService:
         Returns:
             VLMAnalysisData with structured analysis and alerts
         """
+        # Initialize incident_reported outside try block to ensure it's always available
+        incident_reported = None
+        try:
+            incident_type_str = self.config.get_incident_type()
+            # If incident type is "clear", treat it as no incident (None)
+            if incident_type_str and incident_type_str != "clear":
+                incident_reported = IncidentType(incident_type_str)
+            else:
+                incident_reported = None
+        except Exception as e:
+            logger.warning("Failed to get incident type, using None", error=str(e))
+            incident_reported = None
+        
         try:
             try:
                 self.weather_data = await self.weather_service.get_current_weather()
             except Exception as e:
                 logger.warning("Weather fetch failed during VLM analysis, using cached or default data", error=str(e))
                 self.weather_data = self.weather_data or self.weather_service.get_default_weather()
-            
-            incident_type_str = self.config.get_incident_type()
-            incident_reported = IncidentType(incident_type_str)
 
             # Create structured prompt with weather context and incident data
             prompt = self._create_structured_prompt(traffic_snapshot, self.weather_data, incident_reported)
@@ -253,9 +263,9 @@ class VLMService:
 - Temperature: {weather_data.temperature}°{weather_data.temperature_unit}
 - Conditions: {weather_data.detailed_forecast}"""
             
-        # Incident context
+        # Incident context - only add if there's an actual incident (not clear/None)
         incident_context = "No reported incidents."
-        if incident_reported:
+        if incident_reported and incident_reported != IncidentType.CLEAR:
             incident_context = f"REPORTED INCIDENT: {incident_reported.value}. Please prioritize this incident in your analysis and provide specific guidance related to this incident type."
 
         # Create structured prompt
@@ -280,11 +290,6 @@ Please provide a structured analysis in JSON format with the following key detai
    - "level": value should be strictly one of the following: [info, warning, critical]
    - "description": detailed context-rich alert description. This is based on the detailed traffic analysis. If an incident is reported, ensure it is reflected in the alerts with appropriate severity.
    - "weather_related": strictly a boolean value. If weather is a factor for the traffic situation value should be True, otherwise False
-   
-   If a REPORTED INCIDENT is mentioned above, include at least one alert specifically about that incident with:
-   - "alert_type" matching the incident type (e.g., "accident" for accident, "maintenance" for maintenance, "road_condition" for roadblock, "congestion" for crowding)
-   - "level" set to "critical" for incidents like accident, roadblock, maintenance
-   - "description" that clearly mentions the reported incident
    
 3. "recommendations": Array of recommendation objects helping to make decisions while travelling through this intersection:
    - "recommendation": Clear advice for traffic management or safety. If an incident is reported, provide specific recommendations related to that incident type.

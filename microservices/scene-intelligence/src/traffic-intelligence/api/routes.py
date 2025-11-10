@@ -44,8 +44,7 @@ async def get_current_traffic_intelligence(
     """
     Get current traffic intelligence data for the intersection.
     
-    Returns complete traffic intelligence response matching data.json schema
-    with weather data and VLM analysis.
+    Returns complete traffic intelligence response using weather data and VLM analysis.
     
     Args:
         images: If False, camera_images will be excluded from response to reduce size
@@ -192,7 +191,7 @@ async def get_current_weather(request: Request) -> Dict[str, Any]:
 
 @router.get("/config")
 async def get_service_config(request: Request) -> Dict[str, Any]:
-    """Get service configuration (excluding sensitive data)."""
+    """Get service configuration."""
     try:
         config_service = get_config_service(request)
         
@@ -249,11 +248,11 @@ async def update_threshold(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/config/weather")
-async def update_weather_markers(
+async def update_climate_threat_markers(
     request: Request,
-    marker_type: WeatherType = Query(description="Type of weather markers to enable (clear, fires, storm, flood)"),
+    marker_type: WeatherType = Query(description="Type of Climate Threat markers to enable (clear, fires, storm, flood)"),
 ) -> Dict[str, Any]:
-    """Update weather markers configuration."""
+    """Update Climate Threat markers configuration."""
     try:
         config_service = get_config_service(request)
         key_map = {WeatherType.CLEAR: None, WeatherType.FIRES: "enable_fire_markers", WeatherType.STORM: "enable_storm_markers", 
@@ -275,7 +274,7 @@ async def update_weather_markers(
         else:
             raise HTTPException(status_code=400, detail="Invalid marker type")
 
-        logger.info("Weather markers configuration updated", 
+        logger.info("Climate Threat markers configuration updated", 
                    marker_type=marker_type.value,
                    old_setting=old_setting,
                    new_setting=True if config_key else False)
@@ -284,7 +283,7 @@ async def update_weather_markers(
         await weather_service.get_current_weather(force_refresh=True)
 
         return {
-            "message": "Weather markers configuration updated successfully",
+            "message": "Climate Threat markers configuration updated successfully",
             "marker_type": marker_type.value,
             "old_setting": old_setting,
             "new_setting": True if config_key else False,
@@ -292,20 +291,20 @@ async def update_weather_markers(
         }
 
     except Exception as e:
-        logger.error("Failed to update weather markers", error=str(e))
+        logger.error("Failed to update Climate Threat markers", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/config/incident")
 async def update_incident_markers(
     request: Request,
-    incident_type: IncidentType = Query(description="Type of incident markers to set (accident, crowding, roadblock, maintenance, clear)"),
+    incident_type: IncidentType = Query(description="Set the incident markers at the intersection"),
 ) -> Dict[str, Any]:
     """Update incident markers configuration."""
     try:
         config_service = get_config_service(request)
         old_type = config_service.get_traffic_config().get("incident_type")
         
-        new_type = None if incident_type == IncidentType.CLEAR else incident_type.value
+        new_type = incident_type.value
         config_service.update_config("traffic.incident_type", new_type)
 
         logger.info("Incident type updated", 
