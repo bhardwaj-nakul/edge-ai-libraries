@@ -1,9 +1,9 @@
-import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
 
 class ThresholdController:
     """
@@ -16,14 +16,14 @@ class ThresholdController:
         # self.api_base = SCENE_INTELLIGENCE_API_BASE
         # self.threshold_endpoint = SCENE_INTELLIGENCE_ENDPOINTS["update_threshold"]
         pass
-    
+
     def update_threshold(self, threshold_value: int) -> Dict[str, Any]:
         """
         Update the traffic density threshold value in the Scene Intelligence API.
-        
+
         Args:
             threshold_value (int): The new threshold value (1-15)
-            
+
         Returns:
             Dict[str, Any]: The API response containing status information
         """
@@ -36,14 +36,14 @@ class ThresholdController:
         #     payload = {
         #         "threshold": threshold_value
         #     }
-            
+
         #     response = requests.put(api_url, json=payload)
-        #     response.raise_for_status() 
-            
+        #     response.raise_for_status()
+
         #     data = response.json()
         #     logger.info(f"Successfully updated traffic density threshold to {threshold_value}")
         #     return data
-            
+
         # except Exception as e:
         #     logger.error(f"Error updating threshold value: {e}")
         #     return {"error": str(e), "success": False}

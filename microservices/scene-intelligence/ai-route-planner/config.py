@@ -1,4 +1,3 @@
-import os
 from enum import Enum
 from pathlib import Path
 
@@ -18,7 +17,10 @@ DEFAULT_LOCATION_COORDINATES = {
 
 # Directory where GPX files reside
 GPX_DIR: Path = Path(__file__).parent / "data" / "routes"
-IGNORED_ROUTES : list[str] = ["berkeley-eastpaloalto.gpx", "berkeley-sanbruno-sunnyvale.gpx"] 
+IGNORED_ROUTES: list[str] = [
+    "berkeley-eastpaloalto.gpx",
+    "berkeley-sanbruno-sunnyvale.gpx",
+]
 
 # Directory where route status (Weather, traffic, etc. ) data is stored
 ROUTE_STATUS_DIR: Path = Path(__file__).parent / "data" / "csv"
@@ -33,11 +35,13 @@ CONFIG_FILE: Path = Path(__file__).parent / "data" / "config.json"
 # }
 # UPDATE : API Endpoints and Base now come from config file
 
+
 class CongestionLevel(Enum):
     LOW = "Low"
     MODERATE = "Moderate"
     HIGH = "High"
     SEVERE = "Severe"
+
 
 class IncidentStatus(Enum):
     CLEAR = "clear"
@@ -45,6 +49,7 @@ class IncidentStatus(Enum):
     CROWDING = "crowding"
     ROADBLOCK = "roadblock"
     MAINTENANCE = "maintenance"
+
 
 class WeatherStatus(Enum):
     SUNNY = "sunny"
@@ -73,6 +78,7 @@ ROUTE_ISSUE_MAP: dict[str, WeatherStatus | IncidentStatus] = {
     "berkeley-oakland-i880.gpx": WeatherStatus.FLOOD,
     "berkeley-dublin-sanjose.gpx": WeatherStatus.FIRE,
 }
+
 
 class StaticOptimizerName(Enum):
     """

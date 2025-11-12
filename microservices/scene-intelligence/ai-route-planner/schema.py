@@ -32,6 +32,7 @@ class TrafficTrendsData(RouteCondition):
         CongestionLevel, Field(description="Current congestion level at the location")
     ]
 
+
 class WeatherData(RouteCondition):
     """Pydantic model for weather information along a route"""
 
@@ -61,7 +62,8 @@ class LiveTrafficData(RouteCondition):
     """Pydantic model for live traffic data from an external API"""
 
     intersection_name: Annotated[
-        str, Field(description="Name of the intersection where traffic is being monitored")
+        str,
+        Field(description="Name of the intersection where traffic is being monitored"),
     ]
     timestamp: Annotated[
         str, Field(description="Time when the traffic data was recorded")
@@ -73,10 +75,12 @@ class LiveTrafficData(RouteCondition):
         Optional[str], Field(description="Description of the traffic situation")
     ] = None
     weather_status: Annotated[
-        Optional[WeatherStatus], Field(description="Current weather status at the location")
+        Optional[WeatherStatus],
+        Field(description="Current weather status at the location"),
     ] = None
     incident_status: Annotated[
-        Optional[IncidentStatus], Field(description="Current incident status at the location")
+        Optional[IncidentStatus],
+        Field(description="Current incident status at the location"),
     ] = None
 
 

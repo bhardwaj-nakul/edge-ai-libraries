@@ -7,6 +7,8 @@ import logging
 import os
 import sys
 
+from agents.route_planner import get_optimal_route
+
 # Add the current directory to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -16,8 +18,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.FileHandler("test_route_app.log"), logging.StreamHandler()],
 )
-
-from agents.route_agent import get_optimal_route
 
 
 def test_route_agent():
