@@ -61,7 +61,11 @@ async def get_current_traffic_intelligence(
         # Get incident status from config
         config_service = get_config_service(request)
         incident_type_str = config_service.get_incident_type()
-        
+
+        # Get current weather data
+        weather_service = get_weather_service(request)
+        weather_data = await weather_service.get_current_weather()
+
         # Convert to dict for JSON response
         response_dict = {
             "timestamp": traffic_response.timestamp,
@@ -93,25 +97,7 @@ async def get_current_traffic_intelligence(
                 "reporting_enabled": incident_type_str is not None and incident_type_str != "clear",
                 "incident_type": incident_type_str if incident_type_str else "clear"
             },
-            "weather_data": {
-                "name": traffic_response.weather_data.name,
-                "temperature": traffic_response.weather_data.temperature,
-                "temperature_unit": traffic_response.weather_data.temperature_unit,
-                "detailed_forecast": traffic_response.weather_data.detailed_forecast,
-                "short_forecast": traffic_response.weather_data.short_forecast,
-                "wind_speed": traffic_response.weather_data.wind_speed,
-                "wind_direction": traffic_response.weather_data.wind_direction,
-                "wind_info": f"{traffic_response.weather_data.wind_speed.replace(' ', '')}/{traffic_response.weather_data.wind_direction}",
-                "fetched_at": traffic_response.weather_data.fetched_at.isoformat(),
-                "is_precipitation": traffic_response.weather_data.is_precipitation,
-                "precipitation_prob": traffic_response.weather_data.precipitation_prob,
-                "dewpoint": traffic_response.weather_data.dewpoint,
-                "relative_humidity": traffic_response.weather_data.relative_humidity,
-                "is_daytime": traffic_response.weather_data.is_daytime,
-                "start_time": traffic_response.weather_data.start_time,
-                "end_time": traffic_response.weather_data.end_time,
-                "is_cached": traffic_response.weather_data.is_cached,
-            },
+            "weather_data": weather_data.__dict__,
             "vlm_analysis": {
                 "traffic_summary": traffic_response.vlm_analysis.traffic_summary,
                 "alerts": [
