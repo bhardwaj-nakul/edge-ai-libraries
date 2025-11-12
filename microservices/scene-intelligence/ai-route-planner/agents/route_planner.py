@@ -264,7 +264,7 @@ class RoutePlanner:
                         )
                         <= live_traffic_controller.proximity_factor
                     ):
-                        # Count the numvber of intersections in the current route
+                        # Count the number of intersections in the current route
                         num_intersections_in_route += 1
 
                         # Verify if traffic status from Intersection API reflects the actual recorded scenario at the intersection
