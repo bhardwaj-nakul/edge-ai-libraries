@@ -1,10 +1,11 @@
 import math
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import folium
 
-from config import MAP_COLORS
+from config import ADVERSE_WEATHER_CONDITIONS, MAP_COLORS, IncidentStatus
+from schema import LiveTrafficData
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -124,15 +125,10 @@ class MapCreator:
     def add_intersection_marker(
         self,
         map_obj: folium.Map,
-        intersections: list[tuple[str, float, float]],
-        live_traffic_data_list: Optional[List] = None,
+        incident_location: Optional[dict[str, Any]] = None,
+        all_routes: Optional[List[LiveTrafficData]] = None,
     ) -> None:
         """Add markers for all intersections available for routing"""
-        # Create a mapping from intersection name to traffic data for quick lookup
-        traffic_data_map = {}
-        if live_traffic_data_list:
-            for traffic_data in live_traffic_data_list:
-                traffic_data_map[traffic_data.intersection_name] = traffic_data
 
         intersection_icon_html = f"""
         <div style="
@@ -155,63 +151,6 @@ class MapCreator:
         </div>
         """
 
-        for intersection in intersections:
-            intersection_name = intersection[0]
-            
-            # Create popup content with traffic data if available
-            popup_html = f"<b>{intersection_name}</b>"
-            
-            if intersection_name in traffic_data_map:
-                traffic_data = traffic_data_map[intersection_name]
-                popup_html = f"""
-                <div style="font-family: Arial, sans-serif; width: 420px;">
-                    <h4 style="margin: 0 0 8px 0; color: #1a73e8;">{intersection_name}</h4>
-                    <hr style="margin: 0 0 8px 0; border: none; border-top: 1px solid #e0e0e0;">
-                    <div style="margin: 0 0 6px 0; font-size: 13px;">
-                        <strong>Traffic Density:</strong> {traffic_data.traffic_density} vehicles
-                    </div>
-                    <div style="margin: 0 0 6px 0; font-size: 13px;">
-                        <strong>Location:</strong>
-                        Lat: {traffic_data.location_coordinates.latitude:.5f}, Lon: {traffic_data.location_coordinates.longitude:.5f}
-                    </div>
-                """
-                
-                if traffic_data.traffic_description:
-                    # Truncate description if too long
-                    description = traffic_data.traffic_description
-                    popup_html += f"""
-                    <div style="margin: 0 0 8px 0; font-size: 13px;">
-                        <strong>Traffic Description:</strong>
-                        <div style="font-size: 12px; color: #555; margin-top: 3px;">{description}</div>
-                    </div>
-                    """ 
-                popup_html += "</div>"
-            
-            folium.Marker(
-                location=[intersection[1], intersection[2]],
-                popup=folium.Popup(
-                    popup_html,
-                    max_width=440,
-                ),
-                icon=folium.DivIcon(
-                    html=intersection_icon_html, icon_size=(10, 10), icon_anchor=(5, 5)
-                ),
-            ).add_to(map_obj)
-
-    def add_incident_marker(self, map_obj: folium.Map, location_name: str, latitude: float, longitude: float) -> None:
-        """Add a marker for route incidents"""
-
-        # A dict mapping lats and longs to intersection name
-        # intersection_names: dict[tuple, str] = {
-        #     (37.55336,  -122.29627): "Intersection 1",
-        #     (37.82837, -122.29489): "Intersection 2",
-        #     (37.69076, -122.09948): "Intersection 3",
-        #     (37.70127, -121.92295): "Intersection 4"
-        # }
-
-        # get current intersection name
-        # current_intersection = intersection_names.get((latitude, longitude), "Unknown Intersection")
-
         incident_icon_html = f"""
         <div style="
             background-color: {self.map_colors["route_incident"]};
@@ -232,33 +171,90 @@ class MapCreator:
             "></div>
         </div>
         """
-       
-        # for coordinates, intersection_name in intersection_names.items():
-            
-        #     current_latitude, current_longitude = coordinates
 
-        #     if latitude == current_latitude and longitude == current_longitude:
-        folium.Marker(
-            location=[latitude, longitude],
-            popup=folium.Popup(
-                f"<b>{location_name}</b><br>Traffic incident affecting the route",
-                max_width=200,
-            ),
-            icon=folium.DivIcon(
-                html=incident_icon_html, icon_size=(20, 20), icon_anchor=(10, 10)
-            ),
-        ).add_to(map_obj)
-            # else:
-            #     folium.Marker(
-            #         location=[current_latitude, current_longitude],
-            #         popup=folium.Popup(
-            #             f"<b>{intersection_name}</b>",
-            #             max_width=200,
-            #         ),
-            #         icon=folium.DivIcon(
-            #             html=no_incident_icon_html, icon_size=(20, 20), icon_anchor=(10, 10)
-            #         ),
-            #     ).add_to(map_obj)
+        # Iterate through all intersections and add location markers/popup based on weather, incident and traffic
+        for intersection in all_routes:
+            intersection_name = intersection.intersection_name
+            latitude = intersection.location_coordinates.latitude
+            longitude = intersection.location_coordinates.longitude
+
+            logger.debug(f"Adding marker for intersection: {intersection_name} at ({latitude}, {longitude})")
+
+            # Create popup content with traffic data
+            popup_html = f"""
+            <div style="font-family: Arial, sans-serif; width: 420px;">
+                <h4 style="margin: 0 0 8px 0; color: #1a73e8;">{intersection_name}</h4>
+                <hr style="margin: 0 0 8px 0; border: none; border-top: 1px solid #e0e0e0;">
+                <div style="margin: 0 0 6px 0; font-size: 14px;">
+                    Traffic Density: <strong>{intersection.traffic_density} Vehicles </strong>
+                </div>
+                <div style="margin: 0 0 6px 0; font-size: 14px;">
+                   Location:
+                     <strong>{latitude:.4f}, {longitude:.4f}</strong>
+                </div>
+            """
+
+            if intersection.traffic_description:
+                popup_html += f"""
+                <div style="margin: 0 0 8px 0; font-size: 14px;">
+                    <strong>Traffic Description: </strong>
+                    <div style="font-size: 12px; color: #555; margin-top: 3px;">{intersection.traffic_description}</div>
+                </div>
+                """
+
+            if intersection.incident_status:
+                if intersection.incident_status != IncidentStatus.CLEAR:
+                    popup_html += f"""
+                    <div style="margin: 0 0 6px 0; font-size: 14px; color: #d90b64;">
+                        Incident: <strong>{intersection.incident_status.value.title()}</strong>
+                    </div>
+                    """
+                else:
+                    popup_html += """
+                    <div style="margin: 0 0 6px 0; font-size: 14px; color: green;">
+                        <strong>No Known Incidents at the Intersection</strong>
+                    </div>
+                    """
+
+            if intersection.weather_status:
+                if intersection.weather_status in ADVERSE_WEATHER_CONDITIONS:
+                    popup_html += f"""
+                    <div style="margin: 0 0 6px 0; font-size: 14px; color: #d90b64;">
+                        Weather Alert: <strong>{intersection.weather_status.value.title()}</strong>
+                    </div>
+                    """ 
+                else:
+                    popup_html += f"""
+                    <div style="margin: 0 0 6px 0; font-size: 14px;">
+                        Weather: <strong>{intersection.weather_status.value.title()}</strong>
+                    </div>
+                    """
+
+            # Choose icon based on incident status
+            if incident_location and intersection_name == incident_location.get("name"):
+                icon_html = incident_icon_html
+                # Add some description about high traffic congestion
+                popup_html += f"""
+                <div style="margin: 0 0 6px 0; font-size: 15px; color: #d90b64;">
+                    <strong>Route affected due to high traffic congestion!</strong>
+                </div>
+                """
+            else:
+                icon_html = intersection_icon_html
+
+            popup_html += "</div>"
+
+            folium.Marker(
+                location=[latitude, longitude],
+                popup=folium.Popup(
+                    popup_html,
+                    max_width=440,
+                ),
+                icon=folium.DivIcon(
+                    html=icon_html, icon_size=(10, 10), icon_anchor=(5, 5)
+                ),
+            ).add_to(map_obj)
+
 
     def add_game_mode_markers(self, map_obj: folium.Map, game_data: dict) -> None:
         """Add fire and flood emoji markers for game mode"""
@@ -269,7 +265,7 @@ class MapCreator:
                 font-size: 22px;
                 text-align: center;
                 filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-            ">{fire['emoji']}</div>
+            ">{fire["emoji"]}</div>
             """
             folium.Marker(
                 location=[fire["latitude"], fire["longitude"]],
@@ -289,7 +285,7 @@ class MapCreator:
                 font-size: 22px;
                 text-align: center;
                 filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-            ">{flood['emoji']}</div>
+            ">{flood["emoji"]}</div>
             """
             folium.Marker(
                 location=[flood["latitude"], flood["longitude"]],
@@ -301,7 +297,6 @@ class MapCreator:
                     html=flood_html, icon_size=(30, 30), icon_anchor=(15, 15)
                 ),
             ).add_to(map_obj)
-
 
     def add_location_markers(
         self,

@@ -11,7 +11,7 @@ from config import (
 from utils.gpx_parser import MapDataParser
 from utils.logging_config import get_logger
 from utils.map_creator import MapCreator
-from schema import GeoCoordinates
+from schema import GeoCoordinates, LiveTrafficData
 
 logger = get_logger(__name__)
 
@@ -29,7 +29,7 @@ class RouteService:
 
         self.main_route: Optional[Dict] = None
         self.alternate_route: Optional[Dict] = None
-        self.alternate_route_names: List[str] = [] # Keeps track of all alt route names
+        self.alternate_route_names: List[str] = []  # Keeps track of all alt route names
         self.new_alt_route_idx: int = 0  # Needed to identify new alt route and color it differently than others in list
         self.blocked_routes: List[Optional[Dict]] = []
         self.alt_route_trackpoints: list[list] = []
@@ -93,11 +93,15 @@ class RouteService:
             self.alternate_route = None
 
             # Instantiate object for alternate route based on optimal route name recieved from route_state
-            alternate_route_name = self.route_state.get("optimal_route", {}).get("route_name")
+            alternate_route_name = self.route_state.get("optimal_route", {}).get(
+                "route_name"
+            )
             if alternate_route_name:
                 # Push the new route name to list if not already present. Get index of new route anyway.
                 try:
-                    self.new_alt_route_idx = self.alternate_route_names.index(alternate_route_name)
+                    self.new_alt_route_idx = self.alternate_route_names.index(
+                        alternate_route_name
+                    )
                 except ValueError:
                     self.alternate_route_names.append(alternate_route_name)
                     self.new_alt_route_idx = len(self.alternate_route_names) - 1
@@ -109,7 +113,9 @@ class RouteService:
             blocked_route_names: list[str] = self.route_state.get("blocked_routes", [])
             self.blocked_routes = []
             for blocked_route in blocked_route_names:
-                logger.debug(f"Route blocked due to issues at intersection: {blocked_route}")
+                logger.debug(
+                    f"Route blocked due to issues at intersection: {blocked_route}"
+                )
                 temp_parser = MapDataParser(GPX_DIR / blocked_route)
                 self.blocked_routes.append(temp_parser.get_route_data())
 
@@ -117,12 +123,15 @@ class RouteService:
                 f"Successfully loaded alternate route file: {alternate_route_name}"
             )
             if self.alternate_route:
-                logger.debug(f"Found {len(self.alternate_route['waypoints'])} waypoints")
+                logger.debug(
+                    f"Found {len(self.alternate_route['waypoints'])} waypoints"
+                )
                 logger.debug(
                     f"Found {len(self.alternate_route['tracks'][0]['track_points'])} track points"
                 )
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             logger.error(f"Error loading alternate route : {e}")
             self.alternate_route = None
@@ -171,13 +180,17 @@ class RouteService:
             return route_issue
 
         optimal_route_data = self.route_state.get("optimal_route", {})
-        if not optimal_route_data and not self.route_state.get("is_unique_route", False):
+        if not optimal_route_data and not self.route_state.get(
+            "is_unique_route", False
+        ):
             logger.error("Optimal Route info not present in route_state")
-            return f"⚠️ Sorry, No Optimal Route Found!"
-        
+            return "⚠️ Sorry, No Optimal Route Found!"
+
         if self.route_state.get("is_unique_route", False):
             route_issue += " ONLY ONE possible route exists.\n\n"
-            route_issue += " All other routes are either BLOCKED or no other route exists!.\n\n"
+            route_issue += (
+                " All other routes are either BLOCKED or no other route exists!.\n\n"
+            )
         else:
             if event_name := optimal_route_data.get("event_name"):
                 congestion_level = optimal_route_data.get("traffic_history")
@@ -185,17 +198,20 @@ class RouteService:
             elif congestion_level := optimal_route_data.get("traffic_history"):
                 route_issue = f"'{congestion_level.value}' historical traffic trends on the route."
             elif weather_condition := optimal_route_data.get("weather_status"):
-                route_issue = f"'{weather_condition.value}' weather condition on the route."
+                route_issue = (
+                    f"'{weather_condition.value}' weather condition on the route."
+                )
             elif live_traffic := self.route_state.get("live_traffic", {}):
                 if live_traffic.get("traffic_density", 0) > 0:
-                    
                     if live_traffic.get("is_sub_optimal"):
-                        route_issue += "## Sub-optimal Route Found (All routes have high congestion)."
+                        route_issue += "## Sub-optimal Route Found."
 
                     route_issue = f"high traffic density of {live_traffic.get('traffic_density')} at {live_traffic.get('intersection_name')}"
 
                     if live_traffic.get("traffic_description"):
-                        route_issue += f" - {live_traffic.get('traffic_description')[:900]} ..."
+                        route_issue += (
+                            f" - {live_traffic.get('traffic_description')[:900]} ..."
+                        )
         return route_issue
 
     def _get_next_data_source(self) -> str:
@@ -216,7 +232,9 @@ class RouteService:
         """Get default start and end locations"""
         return (
             self.locations[0] if len(self.locations) > 0 else "Berkeley, California",
-            self.locations[-1] if len(self.locations) > 1 else "Santa Clara, California",
+            self.locations[-1]
+            if len(self.locations) > 1
+            else "Santa Clara, California",
         )
 
     def create_direct_route_map(
@@ -232,8 +250,12 @@ class RouteService:
 
         # Get the next data source to be used for route optimization and current route map
         next_data_source = self._get_next_data_source()
-        direct_route_map = self.create_route_map(start_location, end_location, game_data=game_data)
-        distance = self.route_state["optimal_route"]["distance"] if self.route_state else 0.0
+        direct_route_map = self.create_route_map(
+            start_location, end_location, game_data=game_data
+        )
+        distance = (
+            self.route_state["optimal_route"]["distance"] if self.route_state else 0.0
+        )
         return next_data_source, distance, direct_route_map
 
     def create_alternate_route_map(
@@ -248,7 +270,7 @@ class RouteService:
 
         # Get the next data source to be used for route optimization
         next_data_source = self._get_next_data_source()
-        
+
         # Get intersection images and lat and long for route incidents (if any) from live traffic data
         incident_location: Optional[GeoCoordinates] = None
         # intersection_images: Optional[dict[str, str]] = None
@@ -259,20 +281,35 @@ class RouteService:
                 "coords": live_traffic.get("location_coordinates"),
             }
 
-        intersection_list: list[GeoCoordinates] = self.route_state.get("intersection_list", [])
-        logger.info(f"Total {len(intersection_list)} intersections available for routing.")
+        # intersection_list: list[GeoCoordinates] = self.route_state.get("intersection_list", [])
+        # logger.info(f"Total {len(intersection_list)} intersections available for routing.")
 
         # Get the complete live traffic data for all intersections
-        live_traffic_data_list = self.route_state.get("live_traffic_data_list", [])
+        all_routes: List[LiveTrafficData] = self.route_state.get("all_routes_data", [])
 
         # Create alternate route map for the alternate route
-        alternate_map = self.create_route_map(start_location, end_location, intersection_list, incident_location, game_data, live_traffic_data_list)
+        alternate_map = self.create_route_map(
+            start_location, end_location, incident_location, game_data, all_routes
+        )
         distance = self.route_state.get("optimal_route", {}).get("distance", 0.0)
         is_sub_optimal = self.route_state.get("is_sub_optimal", False)
 
-        return next_data_source, alternate_planning_reason, distance, is_sub_optimal, alternate_map
+        return (
+            next_data_source,
+            alternate_planning_reason,
+            distance,
+            is_sub_optimal,
+            alternate_map,
+        )
 
-    def create_route_map(self, start_location: str, end_location: str, intersection_list: Optional[list[GeoCoordinates]] = None, incident_location: Optional[dict[str, Any]] = None, game_data: Optional[dict] = None, live_traffic_data_list: Optional[list] = None) -> str:
+    def create_route_map(
+        self,
+        start_location: str,
+        end_location: str,
+        incident_location: Optional[dict[str, Any]] = None,
+        game_data: Optional[dict] = None,
+        all_routes: Optional[List[LiveTrafficData]] = None,
+    ) -> str:
         """Create a complete route map with all routes and markers"""
         # Get coordinates for the selected locations
         start_coords = self.location_coordinates.get(start_location)
@@ -311,7 +348,9 @@ class RouteService:
             self.alt_route_trackpoints = []
             self.alternate_route_names = []
 
-        logger.debug(f"length of alt_route_trackpoints: {len(self.alt_route_trackpoints)}")
+        logger.debug(
+            f"length of alt_route_trackpoints: {len(self.alt_route_trackpoints)}"
+        )
 
         # Load blocked routes if any
         blocked_routes_trackpoints: list[list] = []
@@ -347,7 +386,9 @@ class RouteService:
                 self.map_creator.add_route_line(
                     map_obj,
                     alt_route,
-                    MAP_COLORS["non_optimal_route"] if i != self.new_alt_route_idx else MAP_COLORS["optimal_route"],
+                    MAP_COLORS["non_optimal_route"]
+                    if i != self.new_alt_route_idx
+                    else MAP_COLORS["optimal_route"],
                     f"Alternate Route {i + 1} from {start_location} to {end_location}",
                 )
         else:
@@ -358,7 +399,7 @@ class RouteService:
                 MAP_COLORS["main_route"],
                 f"Direct Shortest Route from {start_location} to {end_location}",
             )
-        
+
         # Paint the blocked routes in red
         for blocked_route_trackpoint in blocked_routes_trackpoints:
             self.map_creator.add_route_line(
@@ -373,20 +414,9 @@ class RouteService:
             map_obj, start_location, end_location, start_coords, end_coords
         )
 
-        # Add intersection markers if available
-        if intersection_list:
-            # Convert the dict intersection_list to a list of tuples with intersection name and coordinates
-            intersection_coords: list[tuple[str, float, float]] = [
-                (name, coords.latitude, coords.longitude)
-                for name, coords in intersection_list.items()
-            ]
-            self.map_creator.add_intersection_marker(map_obj, intersection_coords, live_traffic_data_list)
-
-        # Add incident marker if available
-        if incident_location:
-            self.map_creator.add_incident_marker(
-                map_obj, incident_location["name"], incident_location["coords"].latitude, incident_location["coords"].longitude
-            )
+        # Add intersection markers with incident location (location of high traffic congestion) if available
+        if all_routes or incident_location:
+            self.map_creator.add_intersection_marker(map_obj, incident_location, all_routes)
 
         # Add game mode markers if game data provided
         if game_data:
