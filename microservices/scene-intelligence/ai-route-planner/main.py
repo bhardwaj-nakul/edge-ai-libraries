@@ -12,7 +12,6 @@ from gradio_toggle import Toggle
 from PIL import Image
 
 from config import APP_DETAILS, INITIAL_MAP_HTML
-from controllers.threshold import ThresholdController
 from services.route_service import RouteService
 from utils.logging_config import setup_logging
 
@@ -24,8 +23,8 @@ optimization_active = False
 optimization_thread = None
 agent_iteration_count = 1
 game_mode_enabled = False  # Global flag for game mode
-UI_UPDATE_INTERVAL = 4  # Poll interval for new updates from data_queue used by thread
-OPTIMIZATION_INTERVAL = 6  # Seconds between agent invocations
+UI_UPDATE_INTERVAL = 8  # Poll interval for new updates from data_queue used by thread
+OPTIMIZATION_INTERVAL = 12  # Seconds between agent invocations
 
 # Queue for passing data between agent thread and UI
 data_queue = queue.Queue()
@@ -33,15 +32,17 @@ data_queue = queue.Queue()
 # Lock for thread-safe access to shared variables
 thread_lock = threading.Lock()
 
+
 def load_game_data():
     """Load game mode emoji data from JSON file"""
     game_data_path = Path(__file__).parent / "data" / "game.json"
     try:
-        with open(game_data_path, 'r') as f:
+        with open(game_data_path, "r") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading game data: {e}")
         return {"fire_emojis": [], "flood_emojis": []}
+
 
 def toggle_game_mode(enabled: bool) -> str:
     """Toggle game mode on/off"""
@@ -50,6 +51,7 @@ def toggle_game_mode(enabled: bool) -> str:
     status = "Game Mode: ON" if enabled else "Game Mode: OFF"
     logger.info(status)
     return status
+
 
 def get_direct_route(source: str, destination: str) -> tuple[str, str, str]:
     """
@@ -83,7 +85,9 @@ def get_direct_route(source: str, destination: str) -> tuple[str, str, str]:
     return agent_status_msg, thinking_message, main_route_map
 
 
-def get_optimal_route(source: str, destination: str) -> tuple[str, str, str, Optional[dict[str, str]]]:
+def get_optimal_route(
+    source: str, destination: str
+) -> tuple[str, str, str, Optional[dict[str, str]]]:
     """
     Uses RouteService to trigger RoutePlanner agent and gets optimized route.
     """
@@ -93,7 +97,9 @@ def get_optimal_route(source: str, destination: str) -> tuple[str, str, str, Opt
     if not is_valid:
         return (
             error_message,
-            route_service.get_fallback_map_html("Select locations to see the route map"),
+            route_service.get_fallback_map_html(
+                "Select locations to see the route map"
+            ),
             None,
         )
 
@@ -108,20 +114,19 @@ def get_optimal_route(source: str, destination: str) -> tuple[str, str, str, Opt
     thinking_message: str = f"\n #### Route: {source} -> {destination}\n\n"
 
     if is_sub_optimal:
-        thinking_message += (
-            f"## Sub-optimal Route Found. \n"
-        )
+        thinking_message += "## Sub-optimal Route Found. \n"
 
     if route_issue and distance:
-        thinking_message += ("### Route Updated due to "
+        thinking_message += (
+            "### Route Updated due to "
             + f"{route_issue} \n\n ##### Total Distance for Updated Route : {distance:.2f} Kms\n\n"
         )
     elif distance == 0.0 and route_issue:
         thinking_message += f"## {route_issue} \n\n"
     else:
         thinking_message = (
-            f"### No traffic, weather issues or congestions found on current route."
-             + f"\n\n ##### Total Distance : {distance:.2f} Kms \n\n"
+            "### No traffic, weather issues or congestions found on current route."
+            + f"\n\n ##### Total Distance : {distance:.2f} Kms \n\n"
         )
 
     # Set message to show Real-time Agent actions
@@ -153,7 +158,7 @@ def planner_agent_thread(source: str, destination: str):
                 agent_status_msg, thinking_output, map_output = get_direct_route(
                     source, destination
                 )
-                
+
             else:
                 # Get optimal route information from the agent
                 agent_status_msg, thinking_output, map_output = get_optimal_route(
@@ -218,7 +223,9 @@ def start_agent(source: str, destination: str) -> tuple[gr.Button, gr.Button]:
         )
         optimization_thread.start()
 
-    return gr.Button(interactive=not optimization_active), gr.Button(interactive=optimization_active)
+    return gr.Button(interactive=not optimization_active), gr.Button(
+        interactive=optimization_active
+    )
 
 
 def stop_agent() -> tuple[gr.Button, gr.Button]:
@@ -238,12 +245,13 @@ def stop_agent() -> tuple[gr.Button, gr.Button]:
             optimization_thread.join(timeout=2.0)
 
             logger.info("Route Planning Stopped!")
-            return gr.Button(interactive=optimization_active), gr.Button(interactive=not optimization_active, value="Resume Route Planning")
+            return gr.Button(interactive=optimization_active), gr.Button(
+                interactive=not optimization_active, value="Resume Route Planning"
+            )
         else:
             logger.info("No Route Planning Agents Running.")
             return gr.Button(), gr.Button()
 
-    
 
 def check_for_updates(*args):
     """
@@ -275,19 +283,25 @@ def check_for_updates(*args):
 
             # Update the intersection images if available
             image_updates = []
-            if intersection_images and isinstance(intersection_images, dict) and len(intersection_images) > 0:
+            if (
+                intersection_images
+                and isinstance(intersection_images, dict)
+                and len(intersection_images) > 0
+            ):
                 for view_name, image_data in list(intersection_images.items())[:4]:
                     if image_data and isinstance(image_data, str):
                         # Read base64 encoded image as bytes and then as a PIL Image
                         image_bytes = BytesIO(base64.b64decode(image_data))
                         image = Image.open(image_bytes)
 
-                        image_updates.append(gr.update(
-                            visible=True,
-                            value=image,
-                            label=f"Camera View: {view_name}",
-                            type="pil"
-                        ))
+                        image_updates.append(
+                            gr.update(
+                                visible=True,
+                                value=image,
+                                label=f"Camera View: {view_name}",
+                                type="pil",
+                            )
+                        )
                     else:
                         image_updates.append(gr.update(visible=False))
 
@@ -304,7 +318,7 @@ def check_for_updates(*args):
                 gr.update(value=map_html),
                 *image_updates,
             )
-        
+
     except queue.Empty:
         logger.info("Empty Data Queue : No Updates available.")
         return no_update_tuple
@@ -528,12 +542,20 @@ def create_gradio_interface() -> gr.Blocks:
                         show_label=True,
                         container=False,
                         radius="lg",
-                        interactive=True
+                        interactive=True,
                     )
-                    game_mode_status = gr.Markdown("Game Mode: OFF", elem_id="game-mode-status")
+                    game_mode_status = gr.Markdown(
+                        "Game Mode: OFF", elem_id="game-mode-status"
+                    )
 
                     with gr.Column(scale=1):
-                        search_btn = gr.Button("Find Route", variant="primary", size="lg", elem_classes=["search-button"], interactive=True)
+                        search_btn = gr.Button(
+                            "Find Route",
+                            variant="primary",
+                            size="lg",
+                            elem_classes=["search-button"],
+                            interactive=True,
+                        )
 
         # AI Thinking Output and Route Map side by side
         with gr.Row(elem_classes=["main-content-row"]):
@@ -546,17 +568,17 @@ def create_gradio_interface() -> gr.Blocks:
                     interactive=False,
                 )
                 stop_agent_btn = gr.Button(
-                    "Stop Route Planning", 
-                    variant="stop", 
+                    "Stop Route Planning",
+                    variant="stop",
                     elem_classes=["stop-button"],
-                    interactive=False
+                    interactive=False,
                 )
                 thinking_output = gr.Markdown(
                     label="AI Agent Thinking Process",
                     value=APP_DETAILS,
-                    elem_classes=["thinking-output"]
+                    elem_classes=["thinking-output"],
                 )
-                
+
                 # Create a group for intersection images
                 with gr.Group(visible=True):
                     with gr.Row():
@@ -565,14 +587,14 @@ def create_gradio_interface() -> gr.Blocks:
                             visible=False,
                             elem_id="intersection-image-1",
                             type="pil",  # Important for base64 images
-                            format="jpeg"
+                            format="jpeg",
                         )
                         intersection_image2 = gr.Image(
                             label="Camera View 2",
                             visible=False,
                             elem_id="intersection-image-2",
                             type="pil",
-                            format="jpeg"
+                            format="jpeg",
                         )
                     with gr.Row():
                         intersection_image3 = gr.Image(
@@ -580,16 +602,16 @@ def create_gradio_interface() -> gr.Blocks:
                             visible=False,
                             elem_id="intersection-image-3",
                             type="pil",
-                            format="jpeg"
+                            format="jpeg",
                         )
                         intersection_image4 = gr.Image(
                             label="Camera View 4",
                             visible=False,
                             elem_id="intersection-image-4",
                             type="pil",
-                            format="jpeg"
+                            format="jpeg",
                         )
-                
+
             with gr.Column(scale=2):
                 with gr.Column():
                     map_output = gr.HTML(
@@ -599,12 +621,15 @@ def create_gradio_interface() -> gr.Blocks:
                         elem_classes=["map-container"],
                     )
 
-        intersection_images = [intersection_image1, intersection_image2, intersection_image3, intersection_image4]
+        intersection_images = [
+            intersection_image1,
+            intersection_image2,
+            intersection_image3,
+            intersection_image4,
+        ]
 
         game_mode_toggle.change(
-            fn=toggle_game_mode,
-            inputs=[game_mode_toggle],
-            outputs=[game_mode_status]
+            fn=toggle_game_mode, inputs=[game_mode_toggle], outputs=[game_mode_status]
         )
 
         # Connect the search button with initial route display and start the Route Planner agent
@@ -628,11 +653,13 @@ def create_gradio_interface() -> gr.Blocks:
         )
 
         stop_agent_btn.click(
-            fn=stop_agent,
-            inputs=None,
-            outputs=[stop_agent_btn, search_btn]
+            fn=stop_agent, inputs=None, outputs=[stop_agent_btn, search_btn]
         ).then(
-            fn=lambda: ("Inactive", "Agent Stopped!", *[gr.update(visible=False) for _ in range(4)]),
+            fn=lambda: (
+                "Inactive",
+                "Agent Stopped!",
+                *[gr.update(visible=False) for _ in range(4)],
+            ),
             inputs=None,
             outputs=[agent_status, thinking_output, *intersection_images],
         ).then(
@@ -647,7 +674,11 @@ def create_gradio_interface() -> gr.Blocks:
         )
 
         app.load(
-            fn=lambda: (APP_DETAILS, INITIAL_MAP_HTML, *[gr.update(visible=False) for _ in range(4)]),
+            fn=lambda: (
+                APP_DETAILS,
+                INITIAL_MAP_HTML,
+                *[gr.update(visible=False) for _ in range(4)],
+            ),
             inputs=None,
             outputs=[thinking_output, map_output, *intersection_images],
         )
@@ -664,11 +695,13 @@ def create_gradio_interface() -> gr.Blocks:
 
 if __name__ == "__main__":
     import os
-    
+
     # Get configuration from environment variables
     server_name = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
-    server_port = int(os.getenv("GRADIO_SERVER_PORT", "7860"))  # Changed default to match Dockerfile
-    
+    server_port = int(
+        os.getenv("GRADIO_SERVER_PORT", "7860")
+    )  # Changed default to match Dockerfile
+
     server_config = {
         "server_name": server_name,
         "server_port": server_port,
