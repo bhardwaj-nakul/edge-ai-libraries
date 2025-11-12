@@ -2,20 +2,23 @@ from operator import add
 from typing import Annotated, List, TypedDict
 
 from config import CongestionLevel, StaticOptimizerName, WeatherStatus
-from schema import GeoCoordinates
+from schema import GeoCoordinates, LiveTrafficData
 
 """
 States used in route planning by LangGraph based agent
 """
 
+
 class RouteState(TypedDict):
     route_name: str  # Name of the route file
     distance: float  # Total distance covered by the route
+
 
 class OptimalRouteState(RouteState):
     traffic_history: CongestionLevel
     weather_status: WeatherStatus
     event_name: str
+
 
 class LiveTrafficState(RouteState):
     intersection_name: str  # Name of the intersection where traffic is being reported
@@ -23,7 +26,10 @@ class LiveTrafficState(RouteState):
     location_coordinates: GeoCoordinates  # Latitude and Longitude for the traffic
     traffic_density: int  # Num of vehicles at the location
     traffic_description: str  # Description of the traffic situation
-    intersection_images: dict[str, str]  # Base64 encoded images from the intersection's cameras
+    intersection_images: dict[
+        str, str
+    ]  # Base64 encoded images from the intersection's cameras
+
 
 class RoutePlannerState(TypedDict):
     source: str
@@ -39,6 +45,9 @@ class RoutePlannerState(TypedDict):
     live_traffic: LiveTrafficState  # Details of live traffic recieved during real-time route optimization
     is_sub_optimal: bool  # Flag to indicate if the optimal route is sub-optimal
     is_unique_route: bool  # Flag to indicate if only one unique route exists
-    intersection_list: dict[str, GeoCoordinates]  # Map of all available intersection names to their coordinates
-    blocked_routes: List[str]  # List of routes blocked due to issues at all intersections
-    live_traffic_data_list: list  # Complete list of LiveTrafficData for all intersections
+    blocked_routes: List[
+        str
+    ]  # List of routes blocked due to issues at all intersections
+    all_routes_data: List[
+        LiveTrafficData
+    ]  # Complete list of LiveTrafficData for all Routes

@@ -9,7 +9,6 @@ from config import (
     GPX_DIR,
     IGNORED_ROUTES,
     ROUTE_ISSUE_MAP,
-    STATIC_ROUTE_OPTIMIZER_STACK,
     CongestionLevel,
     PlannerNode,
     StaticOptimizerName,
@@ -18,12 +17,11 @@ from controllers import (
     LiveTrafficController,
     StaticRouteOptimizerFactory,
     RouteStatusInterface,
-    ThresholdController
+    ThresholdController,
 )
-from schema import GeoCoordinates, LiveTrafficData, RouteCondition
+from schema import LiveTrafficData, RouteCondition
 from utils.gpx_parser import MapDataParser
 from utils.helper import get_all_available_route_files as route_files
-from utils.helper import get_intersection_list
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -89,7 +87,9 @@ class RoutePlanner:
         logger.info("Finding direct shortest route ...")
         logger.debug(f"============= State of the state : {state} =============")
         shortest_route, shortest_distance = self._find_new_shortest_available_route(
-            state["source"], state["destination"], state.get("no_fly_list", IGNORED_ROUTES)
+            state["source"],
+            state["destination"],
+            state.get("no_fly_list", IGNORED_ROUTES),
         )
 
         # Update the direct_route dict with required information
@@ -185,10 +185,12 @@ class RoutePlanner:
     def update_optimal_route_realtime(self, state: State) -> State:
         """Updates the optimal route in real-time based on live traffic data."""
 
-        logger.info("Fetching real-time traffic updates and optimizing route accordingly...")
+        logger.info(
+            "Fetching real-time traffic updates and optimizing route accordingly..."
+        )
 
         # Get all routes from existing no_fly_list state.
-        # IMPORTANT: A copy is required as get returns a reference to the list in state dictionary. 
+        # IMPORTANT: A copy is required as get returns a reference to the list in state dictionary.
         # If we modify local_fly_list directly, it will modify the state itself, which is not desired.
         local_no_fly_list = state.get("no_fly_list", []).copy()
 
@@ -197,19 +199,20 @@ class RoutePlanner:
         live_traffic_state = {}
 
         # If none of the routes are optimal, we store sub-optimal route here.
-        sub_optimal_route: dict[str, str] = {} 
+        sub_optimal_route: dict[str, str] = {}
         sub_optimal_density: int = 0
 
-        # fetch the available live traffic data 
+        # fetch the available live traffic data
         live_traffic_controller = LiveTrafficController()
-        live_route_status: List[LiveTrafficData] = live_traffic_controller.fetch_route_status()
+        all_routes_data: List[LiveTrafficData] = (
+            live_traffic_controller.fetch_route_status()
+        )
 
         # Get List of all available intersections for routing
-        intersection_list: dict[str, GeoCoordinates] = get_intersection_list(live_route_status)
         blocked_routes: list[str] = []
-        logger.debug(f"Available Intersections: {intersection_list}")
+        # logger.debug(f"Available Intersections: {intersection_list}")
 
-        available_route_count : int = 0
+        available_route_count: int = 0
         unique_route: bool = False
         # Iterate till no new routes are available
         while True:
@@ -217,8 +220,10 @@ class RoutePlanner:
             logger.debug(f"Roads not to be taken : {local_no_fly_list}")
 
             # Get next available shortest route
-            next_shortest_route_name, next_shortest_distance = self._find_new_shortest_available_route(
-                state["source"], state["destination"], local_no_fly_list
+            next_shortest_route_name, next_shortest_distance = (
+                self._find_new_shortest_available_route(
+                    state["source"], state["destination"], local_no_fly_list
+                )
             )
 
             if not next_shortest_route_name or not next_shortest_distance:
@@ -246,34 +251,55 @@ class RoutePlanner:
 
                 # Iterate over all routes/intersection found by live traffic controller and proceed with only those which
                 # match the lats and longs of current trackpoint
-                for traffic_status in live_route_status:
+                for traffic_status in all_routes_data:
                     if (
-                        abs(traffic_status.location_coordinates.latitude - trackpoint["lat"])
+                        abs(
+                            traffic_status.location_coordinates.latitude
+                            - trackpoint["lat"]
+                        )
                         <= live_traffic_controller.proximity_factor
-                        and abs(traffic_status.location_coordinates.longitude - trackpoint["lon"])
+                        and abs(
+                            traffic_status.location_coordinates.longitude
+                            - trackpoint["lon"]
+                        )
                         <= live_traffic_controller.proximity_factor
                     ):
                         # Count the numvber of intersections in the current route
                         num_intersections_in_route += 1
 
                         # Verify if traffic status from Intersection API reflects the actual recorded scenario at the intersection
-                        if ROUTE_ISSUE_MAP[next_shortest_route_name] in [traffic_status.weather_status, traffic_status.incident_status]:
+                        if ROUTE_ISSUE_MAP[next_shortest_route_name] in [
+                            traffic_status.weather_status,
+                            traffic_status.incident_status,
+                        ]:
                             route_damage_degree += 1
 
                         # Do not try to updated sub_optimal_roue or live_traffic_state if route is already blocked
-                        if next_shortest_route_name not in state.get("blocked_routes", []) and traffic_status.traffic_density > ThresholdController.TRAFFIC_DENSITY_THRESHOLD:
+                        if (
+                            next_shortest_route_name
+                            not in state.get("blocked_routes", [])
+                            and traffic_status.traffic_density
+                            > ThresholdController.TRAFFIC_DENSITY_THRESHOLD
+                        ):
                             # If traffic is below threshold, stop looking for more trackpoints in current route
-                            logger.info(f"High traffic density ({traffic_status.traffic_density}) in {next_shortest_route_name}. Finding next shortest route...")
+                            logger.info(
+                                f"High traffic density ({traffic_status.traffic_density}) in {next_shortest_route_name}. Finding next shortest route..."
+                            )
                             route_not_optimal = True
 
                             # Every route having density greater than threshold and  is a "potential" sub-optimal route.
-                            if not sub_optimal_route or sub_optimal_density > traffic_status.traffic_density:
+                            if (
+                                not sub_optimal_route
+                                or sub_optimal_density > traffic_status.traffic_density
+                            ):
                                 sub_optimal_route = {
                                     "route_name": next_shortest_route_name,
                                     "distance": next_shortest_distance,
                                 }
                                 sub_optimal_density = traffic_status.traffic_density
-                                logger.info(f"Sub-optimal route updated to {sub_optimal_route} with traffic density {sub_optimal_density}")
+                                logger.info(
+                                    f"Sub-optimal route updated to {sub_optimal_route} with traffic density {sub_optimal_density}"
+                                )
 
                             # Update the live traffic data to provide details of traffic situation and intersection images
                             live_traffic_state = {
@@ -283,29 +309,49 @@ class RoutePlanner:
                                 "timestamp": traffic_status.timestamp,
                                 "location_coordinates": traffic_status.location_coordinates,
                                 "traffic_density": traffic_status.traffic_density,
-                                "traffic_description": traffic_status.traffic_description,
                             }
 
                             # Maintain a buffer of recent live traffic status updates
-                            if len(self.live_traffic_status_list) >= self.MAX_TRAFFIC_STATUS_BUFFER:
+                            if (
+                                len(self.live_traffic_status_list)
+                                >= self.MAX_TRAFFIC_STATUS_BUFFER
+                            ):
                                 self.live_traffic_status_list.pop(0)
 
                             self.live_traffic_status_list.append(live_traffic_state)
-                            logger.debug(f"length of live_traffic_status_list: {len(self.live_traffic_status_list)}")
+                            logger.debug(
+                                f"length of live_traffic_status_list: {len(self.live_traffic_status_list)}"
+                            )
                             break
 
-            if num_intersections_in_route == route_damage_degree and route_damage_degree != 0:
-                logger.info(f"All intersections in route {next_shortest_route_name} report issues. Considering route as non-optimal.")
+            if (
+                num_intersections_in_route == route_damage_degree
+                and route_damage_degree != 0
+            ):
+                logger.info(
+                    f"All intersections in route {next_shortest_route_name} report issues. Considering route as non-optimal."
+                )
                 route_not_optimal = True
 
                 # Remove blocked route traffic details from live_traffic_status_list if present
-                self.live_traffic_status_list = [t for t in self.live_traffic_status_list if t.get("route_name") != next_shortest_route_name]
+                self.live_traffic_status_list = [
+                    t
+                    for t in self.live_traffic_status_list
+                    if t.get("route_name") != next_shortest_route_name
+                ]
 
                 # Discard sub-optimal ad optimal route if it is current route
-                if sub_optimal_route and sub_optimal_route.get("route_name") == next_shortest_route_name:
+                if (
+                    sub_optimal_route
+                    and sub_optimal_route.get("route_name") == next_shortest_route_name
+                ):
                     sub_optimal_route = {}
-                
-                if optimal_route_state and optimal_route_state.get("route_name") == next_shortest_route_name:
+
+                if (
+                    optimal_route_state
+                    and optimal_route_state.get("route_name")
+                    == next_shortest_route_name
+                ):
                     optimal_route_state = {}
 
                 # Keep it in blocked_route list, unless route_damage_degree decreases. Needed just to color it red.
@@ -335,20 +381,26 @@ class RoutePlanner:
 
         # If live traffic status (the issues in traffic) is for same route as that of sub_optimal_route
         # pick the live traffic status of previous route
-        if sub_optimal_route and self.live_traffic_status_list and sub_optimal_route["route_name"] == live_traffic_state.get("route_name"):
-            logger.info("Picking previous live traffic status as current optimal route is sub-optimal")
-            live_traffic_state = self.live_traffic_status_list[len(self.live_traffic_status_list) - 2]
+        if (
+            sub_optimal_route
+            and self.live_traffic_status_list
+            and sub_optimal_route["route_name"] == live_traffic_state.get("route_name")
+        ):
+            logger.info(
+                "Picking previous live traffic status as current optimal route is sub-optimal"
+            )
+            live_traffic_state = self.live_traffic_status_list[
+                len(self.live_traffic_status_list) - 2
+            ]
 
         return {
             "optimal_route": sub_optimal_route or optimal_route_state,
-            "live_traffic": live_traffic_state, 
+            "live_traffic": live_traffic_state,
             "is_sub_optimal": bool(sub_optimal_route),
-            "intersection_list": intersection_list,
             "blocked_routes": blocked_routes,
             "is_unique_route": unique_route,
-            "live_traffic_data_list": live_route_status,
+            "all_routes_data": all_routes_data,
         }
-
 
     def _should_rerun_static_route_optimizers(self, state: State) -> bool:
         """Re-run static route optimizers until optimizer stack is empty"""
