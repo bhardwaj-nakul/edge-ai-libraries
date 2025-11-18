@@ -1,16 +1,4 @@
 {
-    "weather": {
-        "fires": [
-            "bc7ddf1b2e275ef1",
-            "b3137b79ed73094c",
-            "6c5ebc4907023480"
-        ],
-        "flood": [
-            "8f472ac84175b214",
-            "f3c7c78c98ef5851",
-            "8439e8792a1a0175"
-        ]
-    },
     "incidents": {
         "bb3822c44f23e6c8": "maintenance",
         "d0e8b23e6b48f6e1": "maintenance",

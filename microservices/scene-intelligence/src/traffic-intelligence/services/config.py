@@ -218,11 +218,3 @@ class ConfigService:
         # Set the value
         config_ref[keys[-1]] = value
         logger.info("Configuration updated", key=key, value=value)
-
-    def get_intersections_weather_map(self) -> dict:
-        """Get the intersections weather map."""
-        return self.intersections_default_config.get("weather", {})
-
-    def get_intersections_incident_map(self) -> dict:
-        """Get the intersections incident map."""
-        return self.intersections_default_config.get("incidents", {})
