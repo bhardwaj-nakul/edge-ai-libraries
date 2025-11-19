@@ -38,7 +38,7 @@ class LiveTrafficController(RouteStatusInterface):
         A float integer to help consider nearby latitude and longitudes as matching location coordinates.
         Uses the configured COORDINATE_MATCHING_PRECISION value.
         """
-        return 0.0005  # Approx 50 meters
+        return 0.0  # Exact Match
 
     def fetch_route_status(self) -> List[LiveTrafficData]:
         """
