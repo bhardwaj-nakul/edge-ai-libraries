@@ -73,12 +73,14 @@ ADVERSE_WEATHER_CONDITIONS = [
     WeatherStatus.FLOOD,
 ]
 
-ROUTE_ISSUE_MAP: dict[str, WeatherStatus | IncidentStatus] = {
-    "berkeley-sanbruno.gpx": IncidentStatus.MAINTENANCE,
+WEATHER_ISSUE_MAP: dict[str, WeatherStatus] = {
     "berkeley-oakland-i880.gpx": WeatherStatus.FLOOD,
     "berkeley-dublin-sanjose.gpx": WeatherStatus.FIRE,
 }
 
+INCIDENT_ISSUE_MAP: dict[str, IncidentStatus] = {
+ "berkeley-sanbruno.gpx": IncidentStatus.MAINTENANCE,
+}
 
 class StaticOptimizerName(Enum):
     """
@@ -121,7 +123,8 @@ MAP_COLORS = {
     "main_route": "#4285F4",
     "optimal_route": "#13B513",
     "start_marker": "#0AB438",
-    "blocked_routes": "#FF0000",
+    "blocked_routes_valid": "#FF0000",
+    "blocked_routes_invalid": "#BB8B08",
     "route_incident": "#FA1B07",
     "no_incident": "#193A58",
     "end_marker": "#FF9D00",

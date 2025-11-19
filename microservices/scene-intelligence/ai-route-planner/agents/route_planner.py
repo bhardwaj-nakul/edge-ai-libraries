@@ -8,10 +8,13 @@ from config import (
     ADVERSE_WEATHER_CONDITIONS,
     GPX_DIR,
     IGNORED_ROUTES,
-    ROUTE_ISSUE_MAP,
+    WEATHER_ISSUE_MAP,
+    INCIDENT_ISSUE_MAP,
     CongestionLevel,
+    IncidentStatus,
     PlannerNode,
     StaticOptimizerName,
+    WeatherStatus,
 )
 from controllers import (
     LiveTrafficController,
@@ -208,8 +211,10 @@ class RoutePlanner:
             live_traffic_controller.fetch_route_status()
         )
 
-        # Get List of all available intersections for routing
+        # Storage for valid blocked routes and invalid blocked routes
+        # Invalid blocked routes are those which are blocked due to incorrect game moves by user on intersections along the route
         blocked_routes: list[str] = []
+        blocked_routes_invalid: list[str] = []
         # logger.debug(f"Available Intersections: {intersection_list}")
 
         available_route_count: int = 0
@@ -227,7 +232,8 @@ class RoutePlanner:
             )
 
             if not next_shortest_route_name or not next_shortest_distance:
-                if available_route_count - len(blocked_routes) == 1:
+                total_blocked_routes = len(blocked_routes) + len(blocked_routes_invalid)
+                if available_route_count - total_blocked_routes == 1:
                     unique_route = True
                     live_traffic_state = {}
                 logger.info("No more alternate routes available.")
@@ -243,7 +249,8 @@ class RoutePlanner:
             trackpoints = route_data.get("tracks", [{}])[0].get("track_points", [])
 
             num_intersections_in_route: int = 0
-            route_damage_degree: int = 0
+            intersection_blocked_count_valid: int = 0      # Intersection blocked due to correct game move by user
+            intersection_blocked_count_invalid: int = 0    # Intersection blocked due to incorrect game move by user
             for i, trackpoint in enumerate(trackpoints):
                 # If route has been found not to be optimal break out of loop
                 if route_not_optimal:
@@ -268,16 +275,22 @@ class RoutePlanner:
                         num_intersections_in_route += 1
 
                         # Verify if traffic status from Intersection API reflects the actual recorded scenario at the intersection
-                        if ROUTE_ISSUE_MAP[next_shortest_route_name] in [
-                            traffic_status.weather_status,
-                            traffic_status.incident_status,
-                        ]:
-                            route_damage_degree += 1
+                        if WEATHER_ISSUE_MAP.get(next_shortest_route_name) == traffic_status.weather_status or \
+                            INCIDENT_ISSUE_MAP.get(next_shortest_route_name) == traffic_status.incident_status:
+                            intersection_blocked_count_valid += 1
+                        elif traffic_status.weather_status != WeatherStatus.CLEAR or traffic_status.incident_status != IncidentStatus.CLEAR:
+                            intersection_blocked_count_invalid += 1
 
-                        # Do not try to updated sub_optimal_roue or live_traffic_state if route is already blocked
+                        logger.debug("Getting blocked routes when intersection is found to be in current route ...")
+                        logger.debug(f"Blocked routes valid : {blocked_routes}")
+                        logger.debug(f"Blocked routes invalid : {blocked_routes_invalid}")
+
+                        # Do not try to update sub_optimal_route or live_traffic_state if route is already blocked
                         if (
                             next_shortest_route_name
                             not in state.get("blocked_routes", [])
+                            and next_shortest_route_name 
+                            not in state.get("blocked_routes_invalid", [])
                             and traffic_status.traffic_density
                             > ThresholdController.TRAFFIC_DENSITY_THRESHOLD
                         ):
@@ -324,13 +337,18 @@ class RoutePlanner:
                             )
                             break
 
+            logger.debug(f"Num intersection count : {num_intersections_in_route}")
+            logger.debug(f"Intersection blocked count valid: {intersection_blocked_count_valid}")
+            logger.debug(f"Intersection blocked count invalid: {intersection_blocked_count_invalid}")
+
             if (
-                num_intersections_in_route == route_damage_degree
-                and route_damage_degree != 0
+                0 < intersection_blocked_count_valid + intersection_blocked_count_invalid
             ):
                 logger.info(
-                    f"All intersections in route {next_shortest_route_name} report issues. Considering route as non-optimal."
+                    f"Some intersections in route {next_shortest_route_name} report issues. Considering route as non-optimal."
                 )
+                # num_intersections_in_route == intersection_blocked_count_valid
+                # and intersection_blocked_count_valid != 0
                 route_not_optimal = True
 
                 # Remove blocked route traffic details from live_traffic_status_list if present
@@ -354,12 +372,32 @@ class RoutePlanner:
                 ):
                     optimal_route_state = {}
 
-                # Keep it in blocked_route list, unless route_damage_degree decreases. Needed just to color it red.
-                blocked_routes.append(next_shortest_route_name)
+                # Keep it in blocked_route_invalid list, as long as at least one intersection is blocked due to incorrect game move by user.
+                # If all intersections in route are blocked due to correct game move by user, put it in blocked_routes list.
+                # blocked_route_invalid or blocked_route list required to :
+                # 1. Color the route yellow or red, respectively on map UI
+                # 2. Refrain the agent from taking this route again in current iteration
+                if intersection_blocked_count_invalid > 0:
+                    blocked_routes_invalid.append(next_shortest_route_name)
+                    if next_shortest_route_name in blocked_routes:
+                        blocked_routes.remove(next_shortest_route_name)
+                elif intersection_blocked_count_valid == num_intersections_in_route:
+                    blocked_routes.append(next_shortest_route_name)
+                    if next_shortest_route_name in blocked_routes_invalid:
+                        blocked_routes_invalid.remove(next_shortest_route_name)
+
+                logger.debug(f"Blocked routes valid : {blocked_routes}")
+                logger.debug(f"Blocked routes invalid : {blocked_routes_invalid}")
             else:
-                # If in some other iterations route_damage_degree decreases, remove it from blocked_routes state.
+                # If in some other iterations different intersection_blocked_count zero out, remove route from blocked states.
                 if next_shortest_route_name in blocked_routes:
                     blocked_routes.remove(next_shortest_route_name)
+                if next_shortest_route_name in blocked_routes_invalid:
+                    blocked_routes_invalid.remove(next_shortest_route_name)
+
+            logger.debug("getting blocked routes when current route analysis done ...")
+            logger.debug(f"Blocked routes valid : {blocked_routes}")
+            logger.debug(f"Blocked routes invalid : {blocked_routes_invalid}")
 
             if i == len(trackpoints) - 1 and not route_not_optimal:
                 # If we reached the last trackpoint without finding high traffic, consider route to be optimal
@@ -398,6 +436,7 @@ class RoutePlanner:
             "live_traffic": live_traffic_state,
             "is_sub_optimal": bool(sub_optimal_route),
             "blocked_routes": blocked_routes,
+            "blocked_routes_invalid": blocked_routes_invalid,
             "is_unique_route": unique_route,
             "all_routes_data": all_routes_data,
         }

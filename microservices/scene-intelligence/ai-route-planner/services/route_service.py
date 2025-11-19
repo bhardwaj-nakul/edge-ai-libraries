@@ -31,7 +31,7 @@ class RouteService:
         self.alternate_route: Optional[Dict] = None
         self.alternate_route_names: List[str] = []  # Keeps track of all alt route names
         self.new_alt_route_idx: int = 0  # Needed to identify new alt route and color it differently than others in list
-        self.blocked_routes: List[Optional[Dict]] = []
+        self.blocked_routes: Dict[str, List[Dict[str, Any]]] = {}
         self.alt_route_trackpoints: list[list] = []
         self.route_state: Optional[RoutePlannerState] = None
 
@@ -111,13 +111,25 @@ class RouteService:
 
             # Instantitate objects for blocked routes based on blocked route names recieved from route_state
             blocked_route_names: list[str] = self.route_state.get("blocked_routes", [])
-            self.blocked_routes = []
+            blocked_route_invalid_names: list[str] = self.route_state.get("blocked_routes_invalid", [])
+
+            self.blocked_routes: Dict[str, List[Dict[str, Any]]] = {"valid": [], "invalid": []}
+
+            # Update valid blocked routes. Valid because user set correct weather/incident data to block it.
             for blocked_route in blocked_route_names:
                 logger.debug(
                     f"Route blocked due to issues at intersection: {blocked_route}"
                 )
                 temp_parser = MapDataParser(GPX_DIR / blocked_route)
-                self.blocked_routes.append(temp_parser.get_route_data())
+                self.blocked_routes["valid"].append(temp_parser.get_route_data())
+
+            # Update invalid blocked routes. Invalid because user set incorrect weather/incident data to block it.
+            for blocked_route in blocked_route_invalid_names:
+                logger.debug(
+                    f"Route blocked due to incorrect weather/incident setting by user at intersection: {blocked_route}"
+                )
+                temp_parser = MapDataParser(GPX_DIR / blocked_route)
+                self.blocked_routes["invalid"].append(temp_parser.get_route_data())
 
             logger.info(
                 f"Successfully loaded alternate route file: {alternate_route_name}"
@@ -131,7 +143,6 @@ class RouteService:
                 )
         except Exception as e:
             import traceback
-
             traceback.print_exc()
             logger.error(f"Error loading alternate route : {e}")
             self.alternate_route = None
@@ -281,9 +292,6 @@ class RouteService:
                 "coords": live_traffic.get("location_coordinates"),
             }
 
-        # intersection_list: list[GeoCoordinates] = self.route_state.get("intersection_list", [])
-        # logger.info(f"Total {len(intersection_list)} intersections available for routing.")
-
         # Get the complete live traffic data for all intersections
         all_routes: List[LiveTrafficData] = self.route_state.get("all_routes_data", [])
 
@@ -352,11 +360,19 @@ class RouteService:
             f"length of alt_route_trackpoints: {len(self.alt_route_trackpoints)}"
         )
 
-        # Load blocked routes if any
-        blocked_routes_trackpoints: list[list] = []
-        if self.route_state and self.blocked_routes:
-            for blocked_route in self.blocked_routes:
-                blocked_routes_trackpoints.append(
+        blocked_routes_trackpoints_valid: list[list] = []
+        # Load valid blocked routes, if any (blocked by setting correct weather/incident data). To be shown in red. 
+        if self.route_state and (valid_blocked_routes := self.blocked_routes.get("valid")):
+            for blocked_route in valid_blocked_routes:
+                blocked_routes_trackpoints_valid.append(
+                    self._get_route_trackpoints(blocked_route)
+                )
+
+        blocked_routes_trackpoints_invalid: list[list] = []
+        # Load invalid blocked routes, if any (blocked by setting incorrect weather/incident data). To be shown in yellow.
+        if self.route_state and (invalid_blocked_routes := self.blocked_routes.get("invalid")):
+            for blocked_route in invalid_blocked_routes:
+                blocked_routes_trackpoints_invalid.append(
                     self._get_route_trackpoints(blocked_route)
                 )
 
@@ -400,13 +416,22 @@ class RouteService:
                 f"Direct Shortest Route from {start_location} to {end_location}",
             )
 
-        # Paint the blocked routes in red
-        for blocked_route_trackpoint in blocked_routes_trackpoints:
+        # Paint the valid blocked routes in red (valid because user set correct weather/incident data to block it)
+        for blocked_route_trackpoint in blocked_routes_trackpoints_valid:
             self.map_creator.add_route_line(
                 map_obj,
                 blocked_route_trackpoint,
-                MAP_COLORS["blocked_routes"],
-                f"Blocked Route from {start_location} to {end_location}",
+                MAP_COLORS["blocked_routes_valid"],
+                f"Correctly Blocked Route from {start_location} to {end_location}",
+            )
+
+        # Paint the invalid blocked routes in yellow (invalid because user set incorrect weather/incident data to block it)
+        for blocked_route_trackpoint in blocked_routes_trackpoints_invalid:
+            self.map_creator.add_route_line(
+                map_obj,
+                blocked_route_trackpoint,
+                MAP_COLORS["blocked_routes_invalid"],
+                f"Incorrectly Blocked Route from {start_location} to {end_location}",
             )
 
         # Add location markers

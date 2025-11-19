@@ -47,7 +47,10 @@ class RoutePlannerState(TypedDict):
     is_unique_route: bool  # Flag to indicate if only one unique route exists
     blocked_routes: List[
         str
-    ]  # List of routes blocked due to issues at all intersections
+    ]  # List of routes blocked due to correct game moves by user based on actual route issues in the route
+    blocked_routes_invalid: List[
+        str
+    ]  # List of routes blocked due to incorrect game moves by user i.e., setting an incorrect weather or incident in route
     all_routes_data: List[
         LiveTrafficData
     ]  # Complete list of LiveTrafficData for all Routes
