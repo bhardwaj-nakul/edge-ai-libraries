@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 
-def setup_logging(log_level=logging.DEBUG):
+def setup_logging(log_level=logging.INFO):
     """Setup application logging configuration"""
 
     # Create logs directory if it doesn't exist
